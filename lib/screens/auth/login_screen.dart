@@ -3,6 +3,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/common/tooth_logo.dart';
+import '../../state/clinic_scope.dart';
 import '../doctor/signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -72,6 +73,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       );
 
       if (!mounted) return;
+
+      // Trigger a live pull of Supabase records with authenticated credentials
+      context.clinic.refreshRemoteData();
 
       if (role == 'doctor') {
         Navigator.of(context).pushReplacementNamed('/doctor');

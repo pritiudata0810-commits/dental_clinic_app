@@ -29,11 +29,16 @@ class PatientService {
     if (client == null) return false;
 
     try {
-      await client.from('patients').upsert(patient.toMap());
+      await client.from('patients').upsert(patient.toMap(includeExtendedFields: true));
       return true;
     } catch (e) {
-      debugPrint('[PatientService] Error inserting patient: $e');
-      return false;
+      try {
+        await client.from('patients').upsert(patient.toMap(includeExtendedFields: false));
+        return true;
+      } catch (inner) {
+        debugPrint('[PatientService] Error inserting patient: $inner');
+        return false;
+      }
     }
   }
 
@@ -44,12 +49,20 @@ class PatientService {
     try {
       await client
           .from('patients')
-          .update(patient.toMap())
+          .update(patient.toMap(includeExtendedFields: true))
           .eq('id', patient.id);
       return true;
     } catch (e) {
-      debugPrint('[PatientService] Error updating patient: $e');
-      return false;
+      try {
+        await client
+            .from('patients')
+            .update(patient.toMap(includeExtendedFields: false))
+            .eq('id', patient.id);
+        return true;
+      } catch (inner) {
+        debugPrint('[PatientService] Error updating patient: $inner');
+        return false;
+      }
     }
   }
 }

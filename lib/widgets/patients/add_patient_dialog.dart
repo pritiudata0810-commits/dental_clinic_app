@@ -123,15 +123,17 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
                       child: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.primary, size: 22),
                     ),
                     const SizedBox(width: 14),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Register New Patient', style: AppTextStyles.h3),
-                        Text(
-                          'Enter patient profile details for clinic registration & digital file',
-                          style: AppTextStyles.bodySmall,
-                        ),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Register New Patient', style: AppTextStyles.h3),
+                          Text(
+                            'Enter patient profile details for clinic registration & digital file',
+                            style: AppTextStyles.bodySmall,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -181,6 +183,7 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
                             Expanded(
                               child: DropdownButtonFormField<String>(
                                 value: _gender,
+                                isExpanded: true,
                                 decoration: const InputDecoration(labelText: 'Gender'),
                                 items: const [
                                   DropdownMenuItem(value: 'Male', child: Text('Male')),
@@ -204,6 +207,7 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
                             Expanded(
                               child: DropdownButtonFormField<String>(
                                 value: _bloodGroup,
+                                isExpanded: true,
                                 decoration: const InputDecoration(labelText: 'Blood Group'),
                                 items: const ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
                                     .map((bg) => DropdownMenuItem(value: bg, child: Text(bg)))
@@ -239,11 +243,15 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
                             Expanded(
                               child: DropdownButtonFormField<String>(
                                 value: _assignedDoctorId,
+                                isExpanded: true,
                                 decoration: const InputDecoration(labelText: 'Primary Assigned Doctor'),
                                 items: doctors.map((doc) {
                                   return DropdownMenuItem(
                                     value: doc.id,
-                                    child: Text('${doc.name} (${doc.specialization.split('&').first.trim()})'),
+                                    child: Text(
+                                      '${doc.name} (${doc.specialization.split('&').first.trim()})',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   );
                                 }).toList(),
                                 onChanged: (v) {

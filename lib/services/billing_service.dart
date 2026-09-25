@@ -61,4 +61,30 @@ class BillingService {
       return false;
     }
   }
+
+  Future<bool> insertInvoice(Invoice invoice) async {
+    final client = _supabase.client;
+    if (client == null) return false;
+
+    try {
+      try {
+        await client.from('invoices').upsert(invoice.toMap(includeExtendedFields: true));
+      } catch (e) {
+        await client.from('invoices').upsert(invoice.toMap(includeExtendedFields: false));
+      }
+
+      if (invoice.items.isNotEmpty) {
+        final itemsData = invoice.items.map((it) {
+          final m = it.toMap();
+          m['invoice_id'] = invoice.id;
+          return m;
+        }).toList();
+        await client.from('invoice_items').upsert(itemsData);
+      }
+      return true;
+    } catch (e) {
+      debugPrint('[BillingService] Error inserting invoice: $e');
+      return false;
+    }
+  }
 }

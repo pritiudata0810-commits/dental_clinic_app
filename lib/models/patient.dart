@@ -97,8 +97,8 @@ class Patient {
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
+  Map<String, dynamic> toMap({bool includeExtendedFields = true}) {
+    final map = <String, dynamic>{
       'id': id,
       'name': name,
       'phone': phone,
@@ -107,7 +107,7 @@ class Patient {
       'gender': gender,
       'address': address,
       'emergency_contact': emergencyContact,
-      'assigned_doctor_id': assignedDoctorId,
+      'assigned_doctor_id': assignedDoctorId.isNotEmpty ? assignedDoctorId : null,
       'assigned_doctor_name': assignedDoctorName,
       'last_visit': lastVisit,
       'next_appointment': nextAppointment,
@@ -117,11 +117,14 @@ class Patient {
       'allergies': allergies,
       'notes': notes,
       'registration_date': registrationDate.toIso8601String(),
-      'cr_number': crNumber,
-      'age': age,
-      'father_or_guardian': fatherOrGuardian,
-      'medical_alerts': medicalAlerts,
     };
+    if (includeExtendedFields) {
+      if (crNumber.isNotEmpty) map['cr_number'] = crNumber;
+      if (age.isNotEmpty) map['age'] = age;
+      if (fatherOrGuardian.isNotEmpty) map['father_or_guardian'] = fatherOrGuardian;
+      if (medicalAlerts.isNotEmpty) map['medical_alerts'] = medicalAlerts;
+    }
+    return map;
   }
 
   factory Patient.fromMap(Map<String, dynamic> map) {

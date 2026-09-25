@@ -10,9 +10,15 @@ class SupabaseConfig {
   static const String _envUrl = String.fromEnvironment('SUPABASE_URL');
   static const String _envAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
+  // Default clinic project credentials
+  static const String _defaultUrl = 'https://nkvgogpxsipsodqyphtz.supabase.co';
+  static const String _defaultAnonKey =
+      'sb_publishable_bRxJ1p6ttGMrvsxa1e6YJw_P2Lo60E2';
+
   // Static properties
-  static String get url => _envUrl;
-  static String get anonKey => _envAnonKey;
+  static String get url => _envUrl.isNotEmpty ? _envUrl : _defaultUrl;
+  static String get anonKey =>
+      _envAnonKey.isNotEmpty ? _envAnonKey : _defaultAnonKey;
 
   /// Returns true if valid Supabase credentials have been configured.
   static bool get isConfigured =>

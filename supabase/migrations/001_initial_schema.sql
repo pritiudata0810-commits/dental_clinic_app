@@ -61,6 +61,10 @@ create table if not exists public.patients (
   allergies text[] not null default '{}',
   notes text not null default '',
   registration_date timestamptz not null default now(),
+  cr_number text not null default '',
+  age text not null default '',
+  father_or_guardian text not null default '',
+  medical_alerts text[] not null default '{}',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -154,6 +158,10 @@ create table if not exists public.invoices (
   payment_method text not null default 'Cash',
   transaction_ref text,
   notes text not null default '',
+  receipt_number text not null default '',
+  received_by text not null default 'Mr. Ajay Dhanger',
+  payment_status_text text not null default 'Settled',
+  payment_date timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

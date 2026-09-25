@@ -13,6 +13,8 @@ import '../services/doctor_service.dart';
 import '../services/billing_service.dart';
 import '../services/reminder_service.dart';
 import '../services/notification_service.dart';
+import '../services/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ClinicState extends ChangeNotifier {
   final PatientService _patientService = PatientService();
@@ -41,6 +43,26 @@ class ClinicState extends ChangeNotifier {
   // Constructor & Init
   ClinicState() {
     _loadInitialData();
+    _setupAuthListener();
+  }
+
+  void _setupAuthListener() {
+    final client = SupabaseService.instance.client;
+    if (client != null) {
+      client.auth.onAuthStateChange.listen((data) {
+        final event = data.event;
+        if (event == AuthChangeEvent.signedIn ||
+            event == AuthChangeEvent.tokenRefreshed ||
+            event == AuthChangeEvent.userUpdated) {
+          _fetchRemoteData();
+        }
+      });
+    }
+  }
+
+  /// Manually trigger a fresh pull of all records from Supabase
+  Future<void> refreshRemoteData() async {
+    await _fetchRemoteData();
   }
 
   void _loadInitialData() {
@@ -364,6 +386,15 @@ class ClinicState extends ChangeNotifier {
         paymentMethod: paymentMethod,
       );
     }
+  }
+
+  // ADD INVOICE
+  void addInvoice(Invoice invoice) {
+    _invoices.insert(0, invoice);
+    notifyListeners();
+
+    // Persist to Supabase
+    _billingService.insertInvoice(invoice);
   }
 
   // RECORD COMMUNICATION LOGS (SIMULATED)

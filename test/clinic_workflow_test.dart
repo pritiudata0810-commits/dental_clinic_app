@@ -10,6 +10,7 @@ import 'package:dental_clinic_app/screens/receptionist/appointments_screen.dart'
 import 'package:dental_clinic_app/screens/receptionist/doctor_availability_screen.dart';
 import 'package:dental_clinic_app/screens/receptionist/settings_screen.dart';
 import 'package:dental_clinic_app/screens/doctor/main_shell.dart';
+import 'package:dental_clinic_app/widgets/patients/add_patient_dialog.dart';
 
 void main() {
   group('Clinic Multi-Role and Responsive Tests', () {
@@ -227,6 +228,50 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Live Clinic Queue & Token Monitor'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('AddPatientDialog renders all fields and buttons with zero RenderFlex overflow across viewports', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1024, 768);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final clinicState = ClinicState();
+
+      await tester.pumpWidget(
+        ClinicScope(
+          state: clinicState,
+          child: const MaterialApp(
+            home: Scaffold(
+              body: AddPatientDialog(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify header and fields exist
+      expect(find.text('Register New Patient'), findsOneWidget);
+      expect(find.text('1. PERSONAL INFORMATION'), findsOneWidget);
+      expect(find.text('2. CLINIC ASSIGNMENT & MEDICAL NOTES'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.text('Register Patient'), findsOneWidget);
+
+      // Select Dr. Amit Shah (longest name: Endodontist (Root Canal Specialist))
+      final doctorDropdownFinder = find.byType(DropdownButtonFormField<String>).at(2);
+      await tester.tap(doctorDropdownFinder);
+      await tester.pumpAndSettle();
+
+      final doctorItem = find.textContaining('Dr. Amit Shah').last;
+      await tester.tap(doctorItem);
+      await tester.pumpAndSettle();
+
+      // Verify no RenderFlex overflow exception
+      expect(tester.takeException(), isNull);
+
+      // Also test smaller viewport (768x600)
+      tester.view.physicalSize = const Size(768, 600);
+      await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     });
   });

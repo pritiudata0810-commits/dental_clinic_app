@@ -155,8 +155,8 @@ class Invoice {
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
+  Map<String, dynamic> toMap({bool includeExtendedFields = true}) {
+    final map = <String, dynamic>{
       'id': id,
       'invoice_number': invoiceNumber,
       'patient_id': patientId,
@@ -175,11 +175,14 @@ class Invoice {
       'payment_method': paymentMethod,
       'transaction_ref': transactionRef,
       'notes': notes,
-      'receipt_number': receiptNumber,
-      'received_by': receivedBy,
-      'payment_status_text': paymentStatusText,
-      'payment_date': paymentDate?.toIso8601String(),
     };
+    if (includeExtendedFields) {
+      if (receiptNumber.isNotEmpty) map['receipt_number'] = receiptNumber;
+      if (receivedBy.isNotEmpty) map['received_by'] = receivedBy;
+      if (paymentStatusText.isNotEmpty) map['payment_status_text'] = paymentStatusText;
+      if (paymentDate != null) map['payment_date'] = paymentDate!.toIso8601String();
+    }
+    return map;
   }
 
   factory Invoice.fromMap(Map<String, dynamic> map, {List<InvoiceItem>? items}) {
