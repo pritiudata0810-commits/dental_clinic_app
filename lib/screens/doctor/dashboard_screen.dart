@@ -3,6 +3,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/common/app_card.dart';
 import '../../widgets/appointments/add_appointment_dialog.dart';
+import '../../models/appointment.dart';
 import '../../state/clinic_scope.dart';
 import '../receptionist/reports_screen.dart';
 import 'add_patient_screen.dart';
@@ -493,73 +494,101 @@ class DashboardScreen extends StatelessWidget {
             ),
             const SizedBox(height: 10),
 
-            _appointmentCard(
-              time: '09:30 AM',
-              name: 'Aarav Mehta',
-              reason: 'Regular Check-up & Scaling',
-              initials: 'AM',
-              status: 'Confirmed',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const AppointmentDetailsScreen(
-                      patientName: 'Aarav Mehta',
-                      initials: 'AM',
-                      time: '09:30 AM',
-                      reason: 'Regular Check-up & Scaling',
-                      status: 'Confirmed',
-                    ),
+            if (todayAppointments.isNotEmpty) ...[
+              ...todayAppointments.take(5).map((apt) {
+                final initials = apt.patientName.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join();
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _appointmentCard(
+                    time: apt.timeString,
+                    name: apt.patientName,
+                    reason: apt.appointmentType,
+                    initials: initials.isNotEmpty ? initials : 'PT',
+                    status: apt.status.label,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AppointmentDetailsScreen(
+                            patientName: apt.patientName,
+                            initials: initials.isNotEmpty ? initials : 'PT',
+                            time: apt.timeString,
+                            reason: apt.appointmentType,
+                            status: apt.status.label,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 );
-              },
-            ),
-            const SizedBox(height: 10),
-
-            _appointmentCard(
-              time: '10:30 AM',
-              name: 'Ananya Patil',
-              reason: 'Dental Cleaning & Polishing',
-              initials: 'AP',
-              status: 'Checked In',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const AppointmentDetailsScreen(
-                      patientName: 'Ananya Patil',
-                      initials: 'AP',
-                      time: '10:30 AM',
-                      reason: 'Dental Cleaning & Polishing',
-                      status: 'Checked In',
+              }),
+            ] else ...[
+              _appointmentCard(
+                time: '09:30 AM',
+                name: 'Aarav Mehta',
+                reason: 'Regular Check-up & Scaling',
+                initials: 'AM',
+                status: 'Confirmed',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AppointmentDetailsScreen(
+                        patientName: 'Aarav Mehta',
+                        initials: 'AM',
+                        time: '09:30 AM',
+                        reason: 'Regular Check-up & Scaling',
+                        status: 'Confirmed',
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 10),
-
-            _appointmentCard(
-              time: '11:30 AM',
-              name: 'Rohan Deshmukh',
-              reason: 'Tooth Pain & RCT Consultation',
-              initials: 'RD',
-              status: 'In Chair',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const AppointmentDetailsScreen(
-                      patientName: 'Rohan Deshmukh',
-                      initials: 'RD',
-                      time: '11:30 AM',
-                      reason: 'Tooth Pain & RCT Consultation',
-                      status: 'In Chair',
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              _appointmentCard(
+                time: '10:30 AM',
+                name: 'Ananya Patil',
+                reason: 'Dental Cleaning & Polishing',
+                initials: 'AP',
+                status: 'Checked In',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AppointmentDetailsScreen(
+                        patientName: 'Ananya Patil',
+                        initials: 'AP',
+                        time: '10:30 AM',
+                        reason: 'Dental Cleaning & Polishing',
+                        status: 'Checked In',
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              _appointmentCard(
+                time: '11:30 AM',
+                name: 'Rohan Deshmukh',
+                reason: 'Tooth Pain & RCT Consultation',
+                initials: 'RD',
+                status: 'In Chair',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AppointmentDetailsScreen(
+                        patientName: 'Rohan Deshmukh',
+                        initials: 'RD',
+                        time: '11:30 AM',
+                        reason: 'Tooth Pain & RCT Consultation',
+                        status: 'In Chair',
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
 
             const SizedBox(height: 20),
 

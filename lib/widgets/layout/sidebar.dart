@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_colors.dart';
 import '../../state/clinic_scope.dart';
 
 class SidebarItem {
@@ -34,59 +33,69 @@ class AppSidebar extends StatelessWidget {
     final pendingReminders = clinic.pendingRemindersCount;
 
     final navItems = [
-      const SidebarItem(title: 'Dashboard', icon: Icons.dashboard_outlined, index: 0),
+      const SidebarItem(title: 'Dashboard', icon: Icons.dashboard_rounded, index: 0),
       SidebarItem(
         title: 'Waiting Room',
-        icon: Icons.airline_seat_recline_normal_outlined,
+        icon: Icons.airline_seat_recline_normal_rounded,
         index: 1,
         badgeCount: waitingCount > 0 ? waitingCount : null,
       ),
-      const SidebarItem(title: 'Patients', icon: Icons.people_alt_outlined, index: 2),
-      const SidebarItem(title: 'Appointments', icon: Icons.calendar_month_outlined, index: 3),
-      const SidebarItem(title: 'Doctor Availability', icon: Icons.medical_services_outlined, index: 4),
-      const SidebarItem(title: 'Billing & Invoices', icon: Icons.receipt_long_outlined, index: 5),
+      const SidebarItem(title: 'Patients', icon: Icons.people_alt_rounded, index: 2),
+      const SidebarItem(title: 'Appointments', icon: Icons.calendar_month_rounded, index: 3),
+      const SidebarItem(title: 'Doctor Availability', icon: Icons.medical_services_rounded, index: 4),
+      const SidebarItem(title: 'Billing & Invoices', icon: Icons.receipt_long_rounded, index: 5),
       SidebarItem(
         title: 'Call Reminders',
-        icon: Icons.alarm_on_outlined,
+        icon: Icons.alarm_on_rounded,
         index: 6,
         badgeCount: pendingReminders > 0 ? pendingReminders : null,
       ),
-      const SidebarItem(title: 'Reports & Statistics', icon: Icons.bar_chart_outlined, index: 7),
-      const SidebarItem(title: 'Settings', icon: Icons.settings_outlined, index: 8),
+      const SidebarItem(title: 'Reports & Statistics', icon: Icons.bar_chart_rounded, index: 7),
+      const SidebarItem(title: 'Settings', icon: Icons.settings_rounded, index: 8),
     ];
 
+    // Reference 2: Organic deep purple sidebar aesthetic
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      width: isCollapsed ? 76 : 260,
+      width: isCollapsed ? 80 : 250,
       decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(
-          right: BorderSide(color: AppColors.border, width: 1),
-        ),
+        color: Color(0xFF5856D6), // Reference 2 vibrant purple sidebar
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x18000000),
+            blurRadius: 16,
+            offset: Offset(4, 0),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          // Clinic Header / Brand
+          // Clinic Header / Brand with Top Rounded Indicator
           Container(
-            height: 70,
-            padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 12 : 18),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppColors.borderLight)),
-            ),
+            height: 74,
+            padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 14 : 18),
             child: Row(
               mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
               children: [
+                // Reference 2: White pill for brand icon
                 Container(
-                  width: 38,
-                  height: 38,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(10),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
                   child: const Icon(
-                    Icons.health_and_safety_outlined,
-                    color: Colors.white,
-                    size: 22,
+                    Icons.health_and_safety_rounded,
+                    color: Color(0xFF5856D6),
+                    size: 24,
                   ),
                 ),
                 if (!isCollapsed) ...[
@@ -98,24 +107,24 @@ class AppSidebar extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'SmileCare OS',
+                          'SmileCare',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
                             letterSpacing: -0.2,
                           ),
                         ),
                         Text(
-                          'Reception & Clinic Ops',
+                          'SmileCare OS • Clinic Ops',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.textSecondary,
+                            color: Color(0xFFD6D5F7),
                           ),
                         ),
                       ],
@@ -126,14 +135,14 @@ class AppSidebar extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
-          // Nav Items List
+          // Nav Items List (Reference 2 style: White active pills, clean hover)
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               itemCount: navItems.length,
-              separatorBuilder: (ctx, i) => const SizedBox(height: 4),
+              separatorBuilder: (ctx, i) => const SizedBox(height: 6),
               itemBuilder: (context, index) {
                 final item = navItems[index];
                 final isSelected = currentIndex == item.index;
@@ -142,7 +151,12 @@ class AppSidebar extends StatelessWidget {
                   item: item,
                   isSelected: isSelected,
                   isCollapsed: isCollapsed,
-                  onTap: () => clinic.setNavIndex(item.index),
+                  onTap: () {
+                    clinic.setNavIndex(item.index);
+                    if (Scaffold.maybeOf(context)?.isDrawerOpen ?? false) {
+                      Navigator.of(context).pop();
+                    }
+                  },
                 );
               },
             ),
@@ -151,23 +165,31 @@ class AppSidebar extends StatelessWidget {
           // Bottom Receptionist Profile / Role Indicator & Logout
           Container(
             padding: EdgeInsets.all(isCollapsed ? 12 : 16),
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: AppColors.borderLight)),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+              ),
             ),
             child: Column(
               children: [
                 if (!isCollapsed)
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: AppColors.primaryLight,
-                        child: const Text(
-                          'SD',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primaryDark,
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'SD',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF5856D6),
+                            ),
                           ),
                         ),
                       ),
@@ -180,16 +202,16 @@ class AppSidebar extends StatelessWidget {
                               'Sunita Deshmukh',
                               style: TextStyle(
                                 fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
-                              'Head Receptionist',
+                              'Reception Station',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: AppColors.textSecondary,
+                                color: Color(0xFFD6D5F7),
                               ),
                             ),
                           ],
@@ -198,43 +220,51 @@ class AppSidebar extends StatelessWidget {
                     ],
                   )
                 else
-                  const CircleAvatar(
-                    radius: 16,
-                    backgroundColor: AppColors.primaryLight,
-                    child: Text(
-                      'SD',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primaryDark,
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'SD',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF5856D6),
+                        ),
                       ),
                     ),
                   ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 InkWell(
-                  borderRadius: BorderRadius.circular(6),
-                  onTap: () {
-                    // Navigate back to Login
-                    Navigator.of(context).pushReplacementNamed('/login');
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => Navigator.of(context).pushReplacementNamed('/login'),
+                  child: Container(
+                    height: 36,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     child: Row(
                       mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
                       children: [
                         const Icon(
                           Icons.logout_rounded,
                           size: 16,
-                          color: Color(0xFF94A3B8),
+                          color: Colors.white,
                         ),
                         if (!isCollapsed) ...[
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
                           const Text(
-                            'Logout',
+                            'Sign Out',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF64748B),
-                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
@@ -273,13 +303,16 @@ class _SidebarNavTileState extends State<_SidebarNavTile> {
 
   @override
   Widget build(BuildContext context) {
+    // Reference 2: Active items are clean white pills on purple background
     final bg = widget.isSelected
-        ? AppColors.primaryLight.withOpacity(0.8)
+        ? Colors.white
         : _isHovered
-            ? AppColors.surfaceMuted
+            ? Colors.white.withValues(alpha: 0.15)
             : Colors.transparent;
 
-    final fg = widget.isSelected ? AppColors.primaryDark : AppColors.textSecondary;
+    final fg = widget.isSelected
+        ? const Color(0xFF5856D6)
+        : Colors.white;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -289,13 +322,19 @@ class _SidebarNavTileState extends State<_SidebarNavTile> {
         onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 140),
-          height: 42,
+          height: 44,
           padding: EdgeInsets.symmetric(horizontal: widget.isCollapsed ? 0 : 12),
           decoration: BoxDecoration(
             color: bg,
-            borderRadius: BorderRadius.circular(8),
-            border: widget.isSelected
-                ? Border.all(color: AppColors.primary.withOpacity(0.2), width: 1)
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: widget.isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.12),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
                 : null,
           ),
           child: Row(
@@ -313,8 +352,8 @@ class _SidebarNavTileState extends State<_SidebarNavTile> {
                     widget.item.title,
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: widget.isSelected ? AppColors.primaryDark : AppColors.textPrimary,
+                      fontWeight: widget.isSelected ? FontWeight.w800 : FontWeight.w600,
+                      color: fg,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -324,7 +363,7 @@ class _SidebarNavTileState extends State<_SidebarNavTile> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF59E0B),
+                      color: widget.isSelected ? const Color(0xFF5856D6) : const Color(0xFFF59E0B),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(

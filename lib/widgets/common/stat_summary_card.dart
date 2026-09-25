@@ -38,20 +38,24 @@ class _StatSummaryCardState extends State<StatSummaryCard> {
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          transform: Matrix4.translationValues(0, _isHovered ? -2.0 : 0.0, 0),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: _isHovered ? AppColors.primary.withOpacity(0.5) : AppColors.border,
+              color: _isHovered ? AppColors.primary.withValues(alpha: 0.4) : AppColors.border,
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: _isHovered ? Colors.black.withOpacity(0.04) : Colors.black.withOpacity(0.015),
-                blurRadius: _isHovered ? 8 : 4,
-                offset: const Offset(0, 2),
+                color: _isHovered
+                    ? AppColors.primary.withValues(alpha: 0.08)
+                    : Colors.black.withValues(alpha: 0.03),
+                blurRadius: _isHovered ? 14 : 6,
+                offset: Offset(0, _isHovered ? 4 : 2),
               ),
             ],
           ),
@@ -69,30 +73,36 @@ class _StatSummaryCardState extends State<StatSummaryCard> {
                         color: AppColors.textMuted,
                         letterSpacing: 0.8,
                         fontWeight: FontWeight.w700,
+                        fontSize: 11,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   Container(
-                    width: 36,
-                    height: 36,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
                       color: widget.iconBgColor,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
                       widget.icon,
-                      size: 18,
+                      size: 20,
                       color: widget.iconColor,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Text(
                 widget.mainValue,
-                style: AppTextStyles.statValue,
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                  letterSpacing: -0.5,
+                ),
               ),
               const SizedBox(height: 6),
               Text(
@@ -100,6 +110,7 @@ class _StatSummaryCardState extends State<StatSummaryCard> {
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w500,
+                  fontSize: 12,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

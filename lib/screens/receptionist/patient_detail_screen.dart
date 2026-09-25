@@ -94,7 +94,7 @@ class PatientDetailScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              patient.id,
+                              patient.crNumber.isNotEmpty ? 'CR: ${patient.crNumber}' : 'CR: ${patient.id}',
                               style: AppTextStyles.label.copyWith(color: AppColors.primaryDark),
                             ),
                           ),
@@ -114,7 +114,7 @@ class PatientDetailScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '${patient.gender} • DOB: ${patient.dateOfBirth} • Registered: ${DateFormat('dd MMM yyyy').format(patient.registrationDate)}',
+                        '${patient.gender}${patient.age.isNotEmpty ? ' / ${patient.age} yrs' : ''} • DOB: ${patient.dateOfBirth} • Registered: ${DateFormat('dd MMM yyyy').format(patient.registrationDate)}',
                         style: AppTextStyles.bodyMedium,
                       ),
                       const SizedBox(height: 6),
@@ -350,6 +350,14 @@ class PatientDetailScreen extends StatelessWidget {
                           AppButton.outline(
                             text: 'View Receipt',
                             icon: Icons.visibility_outlined,
+                            height: 36,
+                            onPressed: () => InvoicePreviewDialog.show(context, inv),
+                          ),
+                          const SizedBox(width: 8),
+                          AppButton(
+                            text: 'Print Bill',
+                            icon: Icons.print_outlined,
+                            height: 36,
                             onPressed: () => InvoicePreviewDialog.show(context, inv),
                           ),
                         ],

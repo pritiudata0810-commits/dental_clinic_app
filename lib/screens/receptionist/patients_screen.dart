@@ -45,6 +45,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
       return p.name.toLowerCase().contains(query) ||
           p.phone.contains(query) ||
           p.id.toLowerCase().contains(query) ||
+          p.crNumber.toLowerCase().contains(query) ||
           p.assignedDoctorName.toLowerCase().contains(query);
     }).toList();
 
@@ -156,6 +157,16 @@ class _PatientsScreenState extends State<PatientsScreen> {
                                               Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                                 decoration: BoxDecoration(
+                                                  color: AppColors.primaryLight,
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                                                ),
+                                                child: Text('CR: ${patient.crNumber}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                decoration: BoxDecoration(
                                                   color: AppColors.surfaceMuted,
                                                   borderRadius: BorderRadius.circular(4),
                                                 ),
@@ -232,6 +243,16 @@ class _PatientsScreenState extends State<PatientsScreen> {
                                           child: Text(patient.name, style: AppTextStyles.h4, overflow: TextOverflow.ellipsis),
                                         ),
                                         const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primaryLight,
+                                            borderRadius: BorderRadius.circular(4),
+                                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                                          ),
+                                          child: Text('CR: ${patient.crNumber}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+                                        ),
+                                        const SizedBox(width: 4),
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(

@@ -38,27 +38,27 @@ class _AppCardState extends State<AppCard> {
     final border = widget.customBorder ??
         Border.all(
           color: _isHovered && widget.enableHoverEffect
-              ? AppColors.primary.withOpacity(0.4)
+              ? AppColors.primary.withValues(alpha: 0.4)
               : AppColors.border,
           width: 1,
         );
 
     final boxDecoration = BoxDecoration(
       color: widget.backgroundColor ?? AppColors.surface,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(16),
       border: border,
       boxShadow: _isHovered && widget.enableHoverEffect
           ? [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 12,
+                color: AppColors.primary.withValues(alpha: 0.07),
+                blurRadius: 14,
                 offset: const Offset(0, 4),
               ),
             ]
           : [
               BoxShadow(
-                color: Colors.black.withOpacity(0.015),
-                blurRadius: 4,
+                color: Colors.black.withValues(alpha: 0.025),
+                blurRadius: 6,
                 offset: const Offset(0, 2),
               ),
             ],

@@ -167,7 +167,7 @@ class _AppButtonState extends State<AppButton> with SingleTickerProviderStateMix
             padding: widget.padding ?? const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
               color: bg,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
               border: border,
             ),
             child: Row(

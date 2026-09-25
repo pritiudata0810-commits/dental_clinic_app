@@ -72,6 +72,10 @@ class Invoice {
   final String paymentMethod; // "UPI", "Cash", "Card", "Insurance"
   final String? transactionRef;
   final String notes;
+  final String receiptNumber;
+  final String receivedBy;
+  final String paymentStatusText;
+  final DateTime? paymentDate;
 
   const Invoice({
     required this.id,
@@ -93,6 +97,10 @@ class Invoice {
     required this.paymentMethod,
     this.transactionRef,
     this.notes = '',
+    this.receiptNumber = '',
+    this.receivedBy = 'Mr. Ajay Dhanger',
+    this.paymentStatusText = 'Settled',
+    this.paymentDate,
   });
 
   Invoice copyWith({
@@ -115,6 +123,10 @@ class Invoice {
     String? paymentMethod,
     String? transactionRef,
     String? notes,
+    String? receiptNumber,
+    String? receivedBy,
+    String? paymentStatusText,
+    DateTime? paymentDate,
   }) {
     return Invoice(
       id: id ?? this.id,
@@ -136,6 +148,10 @@ class Invoice {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       transactionRef: transactionRef ?? this.transactionRef,
       notes: notes ?? this.notes,
+      receiptNumber: receiptNumber ?? this.receiptNumber,
+      receivedBy: receivedBy ?? this.receivedBy,
+      paymentStatusText: paymentStatusText ?? this.paymentStatusText,
+      paymentDate: paymentDate ?? this.paymentDate,
     );
   }
 
@@ -159,6 +175,10 @@ class Invoice {
       'payment_method': paymentMethod,
       'transaction_ref': transactionRef,
       'notes': notes,
+      'receipt_number': receiptNumber,
+      'received_by': receivedBy,
+      'payment_status_text': paymentStatusText,
+      'payment_date': paymentDate?.toIso8601String(),
     };
   }
 
@@ -193,6 +213,12 @@ class Invoice {
       paymentMethod: map['payment_method']?.toString() ?? 'Cash',
       transactionRef: map['transaction_ref']?.toString(),
       notes: map['notes']?.toString() ?? '',
+      receiptNumber: map['receipt_number']?.toString() ?? '',
+      receivedBy: map['received_by']?.toString() ?? 'Mr. Ajay Dhanger',
+      paymentStatusText: map['payment_status_text']?.toString() ?? 'Settled',
+      paymentDate: map['payment_date'] != null
+          ? DateTime.tryParse(map['payment_date'].toString())
+          : null,
     );
   }
 }

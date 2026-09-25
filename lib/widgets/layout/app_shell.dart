@@ -23,6 +23,7 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isCollapsed = false;
 
   Widget _buildScreen(int index) {
@@ -54,25 +55,44 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final clinic = context.clinic;
     final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 768;
     final autoCollapse = screenWidth < 1024;
     final effectiveCollapsed = _isCollapsed || autoCollapse;
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: AppColors.background,
+      drawer: isMobile
+          ? Drawer(
+              child: SafeArea(
+                child: AppSidebar(
+                  isCollapsed: false,
+                  onToggleCollapse: () => _scaffoldKey.currentState?.closeDrawer(),
+                ),
+              ),
+            )
+          : null,
       body: Row(
         children: [
-          // Sidebar Navigation
-          AppSidebar(
-            isCollapsed: effectiveCollapsed,
-            onToggleCollapse: () => setState(() => _isCollapsed = !_isCollapsed),
-          ),
+          // Sidebar Navigation (Desktop / Tablet)
+          if (!isMobile)
+            AppSidebar(
+              isCollapsed: effectiveCollapsed,
+              onToggleCollapse: () => setState(() => _isCollapsed = !_isCollapsed),
+            ),
 
           // Main Screen Area (TopBar + Dynamic Screen View)
           Expanded(
             child: Column(
               children: [
                 AppTopBar(
-                  onToggleSidebar: () => setState(() => _isCollapsed = !_isCollapsed),
+                  onToggleSidebar: () {
+                    if (isMobile) {
+                      _scaffoldKey.currentState?.openDrawer();
+                    } else {
+                      setState(() => _isCollapsed = !_isCollapsed);
+                    }
+                  },
                   onOpenAddPatient: () => AddPatientDialog.show(context),
                   onOpenAddAppointment: () => AddAppointmentDialog.show(context),
                 ),

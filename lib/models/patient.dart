@@ -17,6 +17,10 @@ class Patient {
   final List<String> allergies;
   final String notes;
   final DateTime registrationDate;
+  final String crNumber;
+  final String age;
+  final String fatherOrGuardian;
+  final List<String> medicalAlerts;
 
   const Patient({
     required this.id,
@@ -37,6 +41,10 @@ class Patient {
     this.allergies = const [],
     this.notes = '',
     required this.registrationDate,
+    this.crNumber = '',
+    this.age = '',
+    this.fatherOrGuardian = '',
+    this.medicalAlerts = const [],
   });
 
   Patient copyWith({
@@ -58,6 +66,10 @@ class Patient {
     List<String>? allergies,
     String? notes,
     DateTime? registrationDate,
+    String? crNumber,
+    String? age,
+    String? fatherOrGuardian,
+    List<String>? medicalAlerts,
   }) {
     return Patient(
       id: id ?? this.id,
@@ -78,6 +90,10 @@ class Patient {
       allergies: allergies ?? this.allergies,
       notes: notes ?? this.notes,
       registrationDate: registrationDate ?? this.registrationDate,
+      crNumber: crNumber ?? this.crNumber,
+      age: age ?? this.age,
+      fatherOrGuardian: fatherOrGuardian ?? this.fatherOrGuardian,
+      medicalAlerts: medicalAlerts ?? this.medicalAlerts,
     );
   }
 
@@ -101,6 +117,10 @@ class Patient {
       'allergies': allergies,
       'notes': notes,
       'registration_date': registrationDate.toIso8601String(),
+      'cr_number': crNumber,
+      'age': age,
+      'father_or_guardian': fatherOrGuardian,
+      'medical_alerts': medicalAlerts,
     };
   }
 
@@ -126,6 +146,10 @@ class Patient {
       registrationDate: map['registration_date'] != null
           ? DateTime.tryParse(map['registration_date'].toString()) ?? DateTime.now()
           : DateTime.now(),
+      crNumber: map['cr_number']?.toString() ?? '',
+      age: map['age']?.toString() ?? '',
+      fatherOrGuardian: map['father_or_guardian']?.toString() ?? '',
+      medicalAlerts: (map['medical_alerts'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
     );
   }
 }

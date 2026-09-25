@@ -31,7 +31,7 @@ class _DentalClinicAppState extends State<DentalClinicApp> {
     return ClinicScope(
       state: _clinicState,
       child: MaterialApp(
-        title: 'SmileCare Dental Clinic OS',
+        title: 'SmileCare - Dental Clinic Management',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         initialRoute: AppRoutes.login,

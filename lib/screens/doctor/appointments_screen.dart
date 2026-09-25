@@ -3,6 +3,8 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/common/app_card.dart';
 import '../../widgets/appointments/add_appointment_dialog.dart';
+import '../../state/clinic_scope.dart';
+import '../../models/appointment.dart';
 import 'appointment_details_screen.dart';
 import 'notifications_screen.dart';
 
@@ -29,51 +31,69 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final clinic = context.clinic;
+    final liveApts = clinic.appointments;
+
     // Filter appointments
-    final displayList = [
-      {
-        'time': '09:30 AM',
-        'patient': 'Aarav Mehta',
-        'reason': 'Regular Check-up & Scaling',
-        'status': 'Confirmed',
-        'initials': 'AM',
-      },
-      {
-        'time': '10:30 AM',
-        'patient': 'Ananya Patil',
-        'reason': 'Dental Cleaning & Polishing',
-        'status': 'Confirmed',
-        'initials': 'AP',
-      },
-      {
-        'time': '11:30 AM',
-        'patient': 'Rohan Deshmukh',
-        'reason': 'Tooth Pain & RCT Consultation',
-        'status': 'Pending',
-        'initials': 'RD',
-      },
-      {
-        'time': '01:00 PM',
-        'patient': 'Sneha Kulkarni',
-        'reason': 'Orthodontic Wire Adjustment',
-        'status': 'Confirmed',
-        'initials': 'SK',
-      },
-      {
-        'time': '03:00 PM',
-        'patient': 'Vedant Joshi',
-        'reason': 'Tooth Sensitivity Assessment',
-        'status': 'Pending',
-        'initials': 'VJ',
-      },
-      {
-        'time': '04:30 PM',
-        'patient': 'Kavita Iyer',
-        'reason': 'Crown Fitting & Check',
-        'status': 'Confirmed',
-        'initials': 'KI',
-      },
-    ];
+    final displayList = liveApts.isNotEmpty
+        ? liveApts.map((a) {
+            final initials = a.patientName.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join();
+            return {
+              'time': a.timeString,
+              'patient': a.patientName,
+              'reason': a.appointmentType,
+              'status': a.status == AppointmentStatus.scheduled || a.status == AppointmentStatus.confirmed
+                  ? 'Confirmed'
+                  : (a.status == AppointmentStatus.waiting || a.status == AppointmentStatus.arrived || a.status == AppointmentStatus.checkedIn
+                      ? 'Pending'
+                      : a.status.label),
+              'initials': initials.isNotEmpty ? initials : 'PT',
+            };
+          }).toList()
+        : [
+            {
+              'time': '09:30 AM',
+              'patient': 'Aarav Mehta',
+              'reason': 'Regular Check-up & Scaling',
+              'status': 'Confirmed',
+              'initials': 'AM',
+            },
+            {
+              'time': '10:30 AM',
+              'patient': 'Ananya Patil',
+              'reason': 'Dental Cleaning & Polishing',
+              'status': 'Confirmed',
+              'initials': 'AP',
+            },
+            {
+              'time': '11:30 AM',
+              'patient': 'Rohan Deshmukh',
+              'reason': 'Tooth Pain & RCT Consultation',
+              'status': 'Pending',
+              'initials': 'RD',
+            },
+            {
+              'time': '01:00 PM',
+              'patient': 'Sneha Kulkarni',
+              'reason': 'Orthodontic Wire Adjustment',
+              'status': 'Confirmed',
+              'initials': 'SK',
+            },
+            {
+              'time': '03:00 PM',
+              'patient': 'Vedant Joshi',
+              'reason': 'Tooth Sensitivity Assessment',
+              'status': 'Pending',
+              'initials': 'VJ',
+            },
+            {
+              'time': '04:30 PM',
+              'patient': 'Kavita Iyer',
+              'reason': 'Crown Fitting & Check',
+              'status': 'Confirmed',
+              'initials': 'KI',
+            },
+          ];
 
     final filteredList = _selectedFilter == 'All'
         ? displayList
