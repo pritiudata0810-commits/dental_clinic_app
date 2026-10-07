@@ -1,27 +1,31 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../state/clinic_scope.dart';
-import '../../models/communication.dart';
+import '../../services/telephony/call_service.dart';
+import '../../services/telephony/messaging_service.dart';
+import '../../services/telephony/phone_number_util.dart';
+import '../../services/auth_service.dart';
 import '../common/app_button.dart';
 import '../common/toast_notification.dart';
 
 class QuickCommDialogs {
-  // CALL MODAL
+  // CALL CONFIRMATION MODAL (LEVEL 1 NATIVE DIALER)
   static void showCallDialog(
     BuildContext context, {
     required String patientId,
     required String patientName,
     required String phoneNumber,
+    VoidCallback? onCallInitiated,
   }) {
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => _CallModal(
+      barrierDismissible: true,
+      builder: (ctx) => _CallConfirmationModal(
         patientId: patientId,
         patientName: patientName,
         phoneNumber: phoneNumber,
+        onCallInitiated: onCallInitiated,
       ),
     );
   }
@@ -33,6 +37,9 @@ class QuickCommDialogs {
     required String patientName,
     required String phoneNumber,
     String? defaultTemplate,
+    String? appointmentDate,
+    String? appointmentTime,
+    String? doctorName,
   }) {
     showDialog(
       context: context,
@@ -41,6 +48,9 @@ class QuickCommDialogs {
         patientName: patientName,
         phoneNumber: phoneNumber,
         defaultTemplate: defaultTemplate,
+        appointmentDate: appointmentDate,
+        appointmentTime: appointmentTime,
+        doctorName: doctorName,
       ),
     );
   }
@@ -52,6 +62,9 @@ class QuickCommDialogs {
     required String patientName,
     required String phoneNumber,
     String? defaultTemplate,
+    String? appointmentDate,
+    String? appointmentTime,
+    String? doctorName,
   }) {
     showDialog(
       context: context,
@@ -60,144 +73,271 @@ class QuickCommDialogs {
         patientName: patientName,
         phoneNumber: phoneNumber,
         defaultTemplate: defaultTemplate,
+        appointmentDate: appointmentDate,
+        appointmentTime: appointmentTime,
+        doctorName: doctorName,
       ),
     );
   }
 }
 
-class _CallModal extends StatefulWidget {
+/// Real Call Confirmation Modal.
+///
+/// Confirms patient identity, validates & normalizes phone number,
+/// and dispatches the actual device phone dialer without fake timers.
+class _CallConfirmationModal extends StatefulWidget {
   final String patientId;
   final String patientName;
   final String phoneNumber;
+  final VoidCallback? onCallInitiated;
 
-  const _CallModal({
+  const _CallConfirmationModal({
     required this.patientId,
     required this.patientName,
     required this.phoneNumber,
+    this.onCallInitiated,
   });
 
   @override
-  State<_CallModal> createState() => _CallModalState();
+  State<_CallConfirmationModal> createState() => _CallConfirmationModalState();
 }
 
-class _CallModalState extends State<_CallModal> {
-  int _seconds = 0;
-  Timer? _timer;
-  bool _isConnected = false;
+class _CallConfirmationModalState extends State<_CallConfirmationModal> {
   final TextEditingController _noteController = TextEditingController();
+  bool _isLaunching = false;
+  late PhoneNumberValidationResult _validation;
 
   @override
   void initState() {
     super.initState();
-    // Simulate call connecting after 1.5 seconds
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (mounted) {
-        setState(() => _isConnected = true);
-        _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-          if (mounted) {
-            setState(() => _seconds++);
-          }
-        });
-      }
-    });
+    _validation = PhoneNumberUtil.validateAndNormalize(widget.phoneNumber);
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
     _noteController.dispose();
     super.dispose();
   }
 
-  String get _formattedDuration {
-    final mins = _seconds ~/ 60;
-    final secs = _seconds % 60;
-    return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
-  }
+  Future<void> _handleConfirmCall() async {
+    setState(() => _isLaunching = true);
 
-  void _endCall() {
-    _timer?.cancel();
-    context.clinic.logCall(
+    final result = await CallService.instance.initiateCall(
       patientId: widget.patientId,
       patientName: widget.patientName,
-      phoneNumber: widget.phoneNumber,
-      direction: CallDirection.outgoing,
-      status: _isConnected ? CallStatus.answered : CallStatus.missed,
-      durationSeconds: _seconds,
+      rawPhoneNumber: widget.phoneNumber,
       note: _noteController.text.trim().isNotEmpty ? _noteController.text.trim() : null,
     );
-    Navigator.of(context).pop();
-    AppFeedback.showSuccess(context, 'Call logged for ${widget.patientName} ($_formattedDuration)');
+
+    if (!mounted) return;
+
+    setState(() => _isLaunching = false);
+
+    if (result.isSuccess) {
+      if (result.record != null) {
+        context.clinic.addCallRecord(result.record!);
+      }
+      Navigator.of(context).pop();
+      AppFeedback.showSuccess(
+        context,
+        'Phone dialer opened for ${widget.patientName}.',
+      );
+      widget.onCallInitiated?.call();
+    } else {
+      AppFeedback.showError(context, result.message);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final staffProfile = AuthService.instance.currentProfile;
+    final staffName = staffProfile?.fullName.isNotEmpty == true
+        ? staffProfile!.fullName
+        : 'Clinic Staff';
+
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
         child: Padding(
-          padding: const EdgeInsets.all(28),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: _isConnected ? AppColors.callGreen.withOpacity(0.12) : AppColors.primaryLight,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.phone_in_talk_rounded,
-                  size: 34,
-                  color: _isConnected ? AppColors.callGreen : AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                widget.patientName,
-                style: AppTextStyles.h3,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                widget.phoneNumber,
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _isConnected ? const Color(0xFFD1FAE5) : const Color(0xFFFEF3C7),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  _isConnected ? 'Connected • $_formattedDuration' : 'Ringing...',
-                  style: AppTextStyles.label.copyWith(
-                    color: _isConnected ? const Color(0xFF047857) : const Color(0xFFB45309),
+              // Header Icon
+              Center(
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: _validation.isValid
+                        ? AppColors.callGreen.withValues(alpha: 0.12)
+                        : const Color(0xFFFEE2E2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _validation.isValid ? Icons.phone_forwarded_rounded : Icons.phone_disabled_rounded,
+                    size: 28,
+                    color: _validation.isValid ? AppColors.callGreen : const Color(0xFFDC2626),
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
+
+              // Title
+              const Center(
+                child: Text(
+                  'Call Patient?',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1E1B4B),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+
+              // Patient Name
+              Center(
+                child: Text(
+                  widget.patientName,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF4B5563),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Phone Number Container
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: _validation.isValid ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _validation.isValid ? const Color(0xFFBBF7D0) : const Color(0xFFFECACA),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _validation.isValid ? Icons.phone_rounded : Icons.error_outline_rounded,
+                      size: 20,
+                      color: _validation.isValid ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _validation.isValid
+                                ? (_validation.formattedDisplay ?? widget.phoneNumber)
+                                : 'Invalid Phone Number',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: _validation.isValid ? const Color(0xFF15803D) : const Color(0xFFB91C1C),
+                            ),
+                          ),
+                          if (!_validation.isValid)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                _validation.errorMessage ?? 'No valid phone number is available for this patient.',
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF991B1B)),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Caller Session Info
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.badge_outlined, size: 16, color: Color(0xFF6B7280)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Calling as: $staffName',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF4B5563)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // Optional Note
               TextField(
                 controller: _noteController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Call Notes (Optional)',
-                  hintText: 'e.g., Patient confirmed arrival at 10 AM',
+                  hintText: 'e.g., Appointment confirmation, lab reminder',
+                  isDense: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 maxLines: 2,
               ),
-              const SizedBox(height: 24),
+
+              const SizedBox(height: 20),
+
+              // Action Buttons: Cancel and Call
               Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  FloatingActionButton.extended(
-                    onPressed: _endCall,
-                    backgroundColor: const Color(0xFFEF4444),
-                    foregroundColor: Colors.white,
-                    icon: const Icon(Icons.call_end),
-                    label: const Text('End Call & Save'),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _isLaunching ? null : () => Navigator.of(context).pop(),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.callGreen,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      icon: _isLaunching
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Icon(Icons.phone_rounded, size: 18),
+                      label: Text(
+                        _isLaunching ? 'Opening...' : 'Call',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      onPressed: (_validation.isValid && !_isLaunching)
+                          ? _handleConfirmCall
+                          : null,
+                    ),
                   ),
                 ],
               ),
@@ -214,12 +354,18 @@ class _SmsModal extends StatefulWidget {
   final String patientName;
   final String phoneNumber;
   final String? defaultTemplate;
+  final String? appointmentDate;
+  final String? appointmentTime;
+  final String? doctorName;
 
   const _SmsModal({
     required this.patientId,
     required this.patientName,
     required this.phoneNumber,
     this.defaultTemplate,
+    this.appointmentDate,
+    this.appointmentTime,
+    this.doctorName,
   });
 
   @override
@@ -229,20 +375,31 @@ class _SmsModal extends StatefulWidget {
 class _SmsModalState extends State<_SmsModal> {
   late TextEditingController _controller;
   String _selectedCategory = 'Appointment Reminder';
+  bool _isLaunching = false;
+  late PhoneNumberValidationResult _validation;
 
-  final Map<String, String> _templates = {
-    'Appointment Reminder':
-        'Dear {Patient}, reminder for your dental appointment at SmileCare Clinic today. Please arrive 10 min early.',
-    'Payment Reminder':
-        'SmileCare: Outstanding balance payment reminder of ₹1,500. Kindly settle via UPI or at reception.',
-    'Follow-up':
-        'Dear {Patient}, how is your recovery following your dental visit? Please call SmileCare for any discomfort.',
-    'Custom': '',
-  };
+  late final Map<String, String> _templates;
 
   @override
   void initState() {
     super.initState();
+    _validation = PhoneNumberUtil.validateAndNormalize(widget.phoneNumber);
+
+    final String apptTimeStr = widget.appointmentDate != null
+        ? '${widget.appointmentDate}${widget.appointmentTime != null ? ' at ${widget.appointmentTime}' : ''}'
+        : 'today';
+    final String doctor = widget.doctorName ?? 'SmileCare Clinic';
+
+    _templates = {
+      'Appointment Reminder':
+          'Dear {Patient}, reminder for your dental appointment with $doctor scheduled $apptTimeStr. Please arrive 10 min early.',
+      'Payment Reminder':
+          'SmileCare: Outstanding balance payment reminder of ₹1,500. Kindly settle via UPI or at reception.',
+      'Follow-up':
+          'Dear {Patient}, how is your recovery following your dental visit? Please call SmileCare for any discomfort.',
+      'Custom': '',
+    };
+
     final initial = widget.defaultTemplate ??
         _templates['Appointment Reminder']!.replaceAll('{Patient}', widget.patientName);
     _controller = TextEditingController(text: initial);
@@ -265,18 +422,30 @@ class _SmsModalState extends State<_SmsModal> {
     }
   }
 
-  void _sendSms() {
-    if (_controller.text.trim().isEmpty) return;
-    context.clinic.logMessage(
-      patientId: widget.patientId,
+  Future<void> _sendSms() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty) {
+      AppFeedback.showError(context, 'Please enter a message to send.');
+      return;
+    }
+
+    setState(() => _isLaunching = true);
+
+    final result = await MessagingService.instance.openSmsComposer(
+      rawPhoneNumber: widget.phoneNumber,
       patientName: widget.patientName,
-      phoneNumber: widget.phoneNumber,
-      channel: MessageChannel.sms,
-      message: _controller.text.trim(),
-      templateCategory: _selectedCategory,
+      message: text,
     );
-    Navigator.of(context).pop();
-    AppFeedback.showSuccess(context, 'SMS sent successfully to ${widget.patientName}');
+
+    if (!mounted) return;
+    setState(() => _isLaunching = false);
+
+    if (result.isSuccess) {
+      Navigator.of(context).pop();
+      AppFeedback.showSuccess(context, 'SMS composer opened for ${widget.patientName}');
+    } else {
+      AppFeedback.showError(context, result.message);
+    }
   }
 
   @override
@@ -307,8 +476,21 @@ class _SmsModalState extends State<_SmsModal> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Send SMS Message', style: AppTextStyles.h4),
-                        Text('To: ${widget.patientName} (${widget.phoneNumber})',
-                            style: AppTextStyles.bodySmall),
+                        Text(
+                          'To: ${widget.patientName} (${widget.phoneNumber})',
+                          style: AppTextStyles.bodySmall,
+                        ),
+                        if (!_validation.isValid) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            _validation.errorMessage ?? 'Invalid phone number',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFFDC2626),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -346,13 +528,13 @@ class _SmsModalState extends State<_SmsModal> {
                 children: [
                   AppButton.ghost(
                     text: 'Cancel',
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: _isLaunching ? null : () => Navigator.of(context).pop(),
                   ),
                   const SizedBox(width: 12),
                   AppButton(
-                    text: 'Send SMS',
-                    icon: Icons.send_rounded,
-                    onPressed: _sendSms,
+                    text: _isLaunching ? 'Opening...' : 'Send SMS',
+                    icon: _isLaunching ? null : Icons.send_rounded,
+                    onPressed: _isLaunching ? null : _sendSms,
                   ),
                 ],
               ),
@@ -369,12 +551,18 @@ class _WhatsAppModal extends StatefulWidget {
   final String patientName;
   final String phoneNumber;
   final String? defaultTemplate;
+  final String? appointmentDate;
+  final String? appointmentTime;
+  final String? doctorName;
 
   const _WhatsAppModal({
     required this.patientId,
     required this.patientName,
     required this.phoneNumber,
     this.defaultTemplate,
+    this.appointmentDate,
+    this.appointmentTime,
+    this.doctorName,
   });
 
   @override
@@ -384,20 +572,31 @@ class _WhatsAppModal extends StatefulWidget {
 class _WhatsAppModalState extends State<_WhatsAppModal> {
   late TextEditingController _controller;
   String _selectedCategory = 'Appointment Reminder';
+  bool _isLaunching = false;
+  late PhoneNumberValidationResult _validation;
 
-  final Map<String, String> _templates = {
-    'Appointment Reminder':
-        'Hello {Patient} 👋\n\nThis is a gentle reminder for your dental consultation at *SmileCare Dental Clinic* scheduled today.\n\n📍 Operatory Wing B\n⏱️ Please report 10 minutes prior.\n\nNeed to reschedule? Reply to this message directly.',
-    'Follow-up':
-        'Hello {Patient} 👋\n\nDr. Rahul Sharma and the team at *SmileCare Clinic* hope you are recovering well after your visit. Remember to follow prescribed post-op oral care guidelines. Contact us if you have any questions!',
-    'Payment Reminder':
-        'Dear {Patient} 👋\n\nYour digital invoice is ready from *SmileCare Dental Clinic*. Pending balance: *₹1,500*.\n\nYou can pay directly via UPI at reception or online.',
-    'Custom': '',
-  };
+  late final Map<String, String> _templates;
 
   @override
   void initState() {
     super.initState();
+    _validation = PhoneNumberUtil.validateAndNormalize(widget.phoneNumber);
+
+    final String apptTimeStr = widget.appointmentDate != null
+        ? '${widget.appointmentDate}${widget.appointmentTime != null ? ' at ${widget.appointmentTime}' : ''}'
+        : 'today';
+    final String doctor = widget.doctorName ?? 'Dr. Rahul Sharma';
+
+    _templates = {
+      'Appointment Reminder':
+          'Hello {Patient} 👋\n\nThis is a gentle reminder for your dental consultation with $doctor at *SmileCare Dental Clinic* scheduled $apptTimeStr.\n\n📍 Operatory Wing B\n⏱️ Please report 10 minutes prior.\n\nNeed to reschedule? Reply to this message directly.',
+      'Follow-up':
+          'Hello {Patient} 👋\n\n$doctor and the team at *SmileCare Clinic* hope you are recovering well after your visit. Remember to follow prescribed post-op oral care guidelines. Contact us if you have any questions!',
+      'Payment Reminder':
+          'Dear {Patient} 👋\n\nYour digital invoice is ready from *SmileCare Dental Clinic*. Pending balance: *₹1,500*.\n\nYou can pay directly via UPI at reception or online.',
+      'Custom': '',
+    };
+
     final initial = widget.defaultTemplate ??
         _templates['Appointment Reminder']!.replaceAll('{Patient}', widget.patientName);
     _controller = TextEditingController(text: initial);
@@ -420,18 +619,30 @@ class _WhatsAppModalState extends State<_WhatsAppModal> {
     }
   }
 
-  void _sendWhatsApp() {
-    if (_controller.text.trim().isEmpty) return;
-    context.clinic.logMessage(
-      patientId: widget.patientId,
+  Future<void> _sendWhatsApp() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty) {
+      AppFeedback.showError(context, 'Please enter a message to send.');
+      return;
+    }
+
+    setState(() => _isLaunching = true);
+
+    final result = await MessagingService.instance.openWhatsApp(
+      rawPhoneNumber: widget.phoneNumber,
       patientName: widget.patientName,
-      phoneNumber: widget.phoneNumber,
-      channel: MessageChannel.whatsapp,
-      message: _controller.text.trim(),
-      templateCategory: _selectedCategory,
+      message: text,
     );
-    Navigator.of(context).pop();
-    AppFeedback.showSuccess(context, 'WhatsApp notification sent to ${widget.patientName}');
+
+    if (!mounted) return;
+    setState(() => _isLaunching = false);
+
+    if (result.isSuccess) {
+      Navigator.of(context).pop();
+      AppFeedback.showSuccess(context, 'WhatsApp opened for ${widget.patientName}');
+    } else {
+      AppFeedback.showError(context, result.message);
+    }
   }
 
   @override
@@ -462,8 +673,21 @@ class _WhatsAppModalState extends State<_WhatsAppModal> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('WhatsApp Patient Notification', style: AppTextStyles.h4),
-                        Text('Patient: ${widget.patientName} • ${widget.phoneNumber}',
-                            style: AppTextStyles.bodySmall),
+                        Text(
+                          'Patient: ${widget.patientName} • ${widget.phoneNumber}',
+                          style: AppTextStyles.bodySmall,
+                        ),
+                        if (!_validation.isValid) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            _validation.errorMessage ?? 'Invalid phone number',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFFDC2626),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -504,13 +728,13 @@ class _WhatsAppModalState extends State<_WhatsAppModal> {
                 children: [
                   AppButton.ghost(
                     text: 'Cancel',
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: _isLaunching ? null : () => Navigator.of(context).pop(),
                   ),
                   const SizedBox(width: 12),
                   AppButton.success(
-                    text: 'Send on WhatsApp',
-                    icon: Icons.send,
-                    onPressed: _sendWhatsApp,
+                    text: _isLaunching ? 'Opening...' : 'Send on WhatsApp',
+                    icon: _isLaunching ? null : Icons.send,
+                    onPressed: _isLaunching ? null : _sendWhatsApp,
                   ),
                 ],
               ),

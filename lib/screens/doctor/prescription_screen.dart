@@ -12,6 +12,7 @@ class PrescriptionScreen extends StatefulWidget {
   final String diagnosis;
   final String treatment;
   final String procedureCode;
+  final int? toothNumber;
 
   const PrescriptionScreen({
     super.key,
@@ -21,6 +22,7 @@ class PrescriptionScreen extends StatefulWidget {
     this.diagnosis = 'Mild chronic gingivitis.',
     this.treatment = 'Full mouth ultrasonic scaling completed.',
     this.procedureCode = 'D1110 - Prophylaxis Adult',
+    this.toothNumber,
   });
 
   @override
@@ -263,6 +265,7 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
                         treatment: widget.treatment,
                         procedureCode: widget.procedureCode,
                         medicines: medicineList,
+                        toothNumber: widget.toothNumber,
                       ),
                     ),
                   );

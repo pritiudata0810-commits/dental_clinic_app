@@ -34,7 +34,7 @@ class _DentalClinicAppState extends State<DentalClinicApp> {
         title: 'SmileCare - Dental Clinic Management',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
-        initialRoute: AppRoutes.login,
+        initialRoute: AppRoutes.root,
         routes: AppRoutes.routes,
       ),
     );

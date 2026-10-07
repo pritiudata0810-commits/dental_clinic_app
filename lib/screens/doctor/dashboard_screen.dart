@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/common/app_card.dart';
+import '../../widgets/common/app_button.dart';
 import '../../widgets/appointments/add_appointment_dialog.dart';
+import '../../widgets/billing/create_invoice_dialog.dart';
 import '../../models/appointment.dart';
 import '../../state/clinic_scope.dart';
 import '../receptionist/reports_screen.dart';
@@ -10,6 +12,7 @@ import 'add_patient_screen.dart';
 import 'appointment_details_screen.dart';
 import 'appointments_screen.dart';
 import 'patients_screen.dart';
+import 'visit_notes_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -22,6 +25,18 @@ class DashboardScreen extends StatelessWidget {
     final totalPatients = clinic.patients.length;
     final waitingCount = clinic.waitingRoomCount;
     final queuePatients = clinic.waitingRoomPatients;
+
+    final inChairApt = todayAppointments.cast<Appointment?>().firstWhere(
+      (a) => a?.status == AppointmentStatus.inProgress,
+      orElse: () => null,
+    );
+    final nextWaitingApt = queuePatients.cast<Appointment?>().firstWhere(
+      (a) =>
+          a?.status == AppointmentStatus.waiting ||
+          a?.status == AppointmentStatus.checkedIn ||
+          a?.status == AppointmentStatus.arrived,
+      orElse: () => queuePatients.isNotEmpty ? queuePatients.first : null,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -245,10 +260,10 @@ class DashboardScreen extends StatelessWidget {
                               ),
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: const Column(
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
+                                const Text(
                                   'CURRENT TOKEN IN CHAIR',
                                   style: TextStyle(
                                     fontSize: 10,
@@ -257,20 +272,24 @@ class DashboardScreen extends StatelessWidget {
                                     letterSpacing: 0.5,
                                   ),
                                 ),
-                                SizedBox(height: 6),
+                                const SizedBox(height: 6),
                                 Text(
-                                  '18',
-                                  style: TextStyle(
+                                  inChairApt?.tokenNumber ?? '-',
+                                  style: const TextStyle(
                                     fontSize: 34,
                                     fontWeight: FontWeight.w800,
                                     color: Colors.white,
                                     height: 1,
                                   ),
                                 ),
-                                SizedBox(height: 4),
+                                const SizedBox(height: 4),
                                 Text(
-                                  'Rohan Deshmukh • Root Canal Consult',
-                                  style: TextStyle(fontSize: 11, color: Colors.white70),
+                                  inChairApt != null
+                                      ? '${inChairApt.patientName} • ${inChairApt.appointmentType}'
+                                      : 'No patient currently in chair',
+                                  style: const TextStyle(fontSize: 11, color: Colors.white70),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),
@@ -285,10 +304,10 @@ class DashboardScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(color: AppColors.border),
                             ),
-                            child: const Column(
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
+                                const Text(
                                   'NEXT TOKEN IN WAITING ROOM',
                                   style: TextStyle(
                                     fontSize: 10,
@@ -297,20 +316,24 @@ class DashboardScreen extends StatelessWidget {
                                     letterSpacing: 0.5,
                                   ),
                                 ),
-                                SizedBox(height: 6),
+                                const SizedBox(height: 6),
                                 Text(
-                                  '19',
-                                  style: TextStyle(
+                                  nextWaitingApt?.tokenNumber ?? '-',
+                                  style: const TextStyle(
                                     fontSize: 34,
                                     fontWeight: FontWeight.w800,
                                     color: AppColors.textPrimary,
                                     height: 1,
                                   ),
                                 ),
-                                SizedBox(height: 4),
+                                const SizedBox(height: 4),
                                 Text(
-                                  'Ananya Patil • Checked In',
-                                  style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                  nextWaitingApt != null
+                                      ? '${nextWaitingApt.patientName} • ${nextWaitingApt.status.label}'
+                                      : 'Waiting room queue is clear',
+                                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),
@@ -438,6 +461,16 @@ class DashboardScreen extends StatelessWidget {
                     SizedBox(
                       width: actionWidth,
                       child: _quickAction(
+                        icon: Icons.receipt_long_outlined,
+                        title: 'Create Patient Bill',
+                        color: const Color(0xFFE0F2FE),
+                        iconColor: const Color(0xFF0284C7),
+                        onTap: () => CreateInvoiceDialog.show(context),
+                      ),
+                    ),
+                    SizedBox(
+                      width: actionWidth,
+                      child: _quickAction(
                         icon: Icons.bar_chart_rounded,
                         title: 'Reports & Analytics',
                         color: const Color(0xFFFFEDD5),
@@ -468,6 +501,115 @@ class DashboardScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
+            // ─── WAITING PATIENTS QUEUE ─────────────────────────────────
+            if (queuePatients.isNotEmpty) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        'Waiting Patients Queue',
+                        style: AppTextStyles.h4,
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${queuePatients.length} in Queue',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFD97706),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ...queuePatients.map((apt) {
+                final initials = apt.patientName.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join();
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: AppCard(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: AppColors.primaryLight,
+                          child: Text(
+                            initials.isNotEmpty ? initials : 'PT',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: AppColors.primaryDark,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                apt.patientName,
+                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Token: ${apt.tokenNumber} • ${apt.appointmentType} • ${apt.timeString}',
+                                style: AppTextStyles.caption,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF3C7),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            apt.status.label,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFD97706),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        AppButton(
+                          text: 'Start Consultation',
+                          icon: Icons.play_arrow_rounded,
+                          height: 34,
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => VisitNotesScreen(
+                                  patientName: apt.patientName,
+                                  appointmentReason: apt.appointmentType,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(height: 16),
+            ],
+
             // ─── TODAY'S APPOINTMENTS SCHEDULE ──────────────────────────
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -495,7 +637,7 @@ class DashboardScreen extends StatelessWidget {
             const SizedBox(height: 10),
 
             if (todayAppointments.isNotEmpty) ...[
-              ...todayAppointments.take(5).map((apt) {
+              ...todayAppointments.take(8).map((apt) {
                 final initials = apt.patientName.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join();
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
@@ -523,70 +665,31 @@ class DashboardScreen extends StatelessWidget {
                 );
               }),
             ] else ...[
-              _appointmentCard(
-                time: '09:30 AM',
-                name: 'Aarav Mehta',
-                reason: 'Regular Check-up & Scaling',
-                initials: 'AM',
-                status: 'Confirmed',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const AppointmentDetailsScreen(
-                        patientName: 'Aarav Mehta',
-                        initials: 'AM',
-                        time: '09:30 AM',
-                        reason: 'Regular Check-up & Scaling',
-                        status: 'Confirmed',
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Center(
+                  child: Column(
+                    children: [
+                      const Icon(Icons.event_available_outlined, size: 40, color: AppColors.textMuted),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'No appointments scheduled for today',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
                       ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-              _appointmentCard(
-                time: '10:30 AM',
-                name: 'Ananya Patil',
-                reason: 'Dental Cleaning & Polishing',
-                initials: 'AP',
-                status: 'Checked In',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const AppointmentDetailsScreen(
-                        patientName: 'Ananya Patil',
-                        initials: 'AP',
-                        time: '10:30 AM',
-                        reason: 'Dental Cleaning & Polishing',
-                        status: 'Checked In',
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Book a new patient appointment using the Quick Actions above.',
+                        style: TextStyle(fontSize: 12, color: AppColors.textMuted),
                       ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-              _appointmentCard(
-                time: '11:30 AM',
-                name: 'Rohan Deshmukh',
-                reason: 'Tooth Pain & RCT Consultation',
-                initials: 'RD',
-                status: 'In Chair',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const AppointmentDetailsScreen(
-                        patientName: 'Rohan Deshmukh',
-                        initials: 'RD',
-                        time: '11:30 AM',
-                        reason: 'Tooth Pain & RCT Consultation',
-                        status: 'In Chair',
-                      ),
-                    ),
-                  );
-                },
+                    ],
+                  ),
+                ),
               ),
             ],
 

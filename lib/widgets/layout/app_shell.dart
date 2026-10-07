@@ -14,6 +14,7 @@ import '../../screens/receptionist/reports_screen.dart';
 import '../../screens/receptionist/settings_screen.dart';
 import '../patients/add_patient_dialog.dart';
 import '../appointments/add_appointment_dialog.dart';
+import '../chat/ai_floating_button.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -25,6 +26,8 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isCollapsed = false;
+
+
 
   Widget _buildScreen(int index) {
     switch (index) {
@@ -60,56 +63,97 @@ class _AppShellState extends State<AppShell> {
     final effectiveCollapsed = _isCollapsed || autoCollapse;
 
     return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: AppColors.background,
-      drawer: isMobile
-          ? Drawer(
-              child: SafeArea(
-                child: AppSidebar(
-                  isCollapsed: false,
-                  onToggleCollapse: () => _scaffoldKey.currentState?.closeDrawer(),
+        key: _scaffoldKey,
+        backgroundColor: AppColors.background,
+        drawer: isMobile
+            ? Drawer(
+                child: SafeArea(
+                  child: AppSidebar(
+                    isCollapsed: false,
+                    onToggleCollapse: () => _scaffoldKey.currentState?.closeDrawer(),
+                  ),
                 ),
-              ),
-            )
-          : null,
-      body: Row(
-        children: [
-          // Sidebar Navigation (Desktop / Tablet)
-          if (!isMobile)
-            AppSidebar(
-              isCollapsed: effectiveCollapsed,
-              onToggleCollapse: () => setState(() => _isCollapsed = !_isCollapsed),
-            ),
-
-          // Main Screen Area (TopBar + Dynamic Screen View)
-          Expanded(
-            child: Column(
+              )
+            : null,
+        body: Stack(
+          children: [
+            Row(
               children: [
-                AppTopBar(
-                  onToggleSidebar: () {
-                    if (isMobile) {
-                      _scaffoldKey.currentState?.openDrawer();
-                    } else {
-                      setState(() => _isCollapsed = !_isCollapsed);
-                    }
-                  },
-                  onOpenAddPatient: () => AddPatientDialog.show(context),
-                  onOpenAddAppointment: () => AddAppointmentDialog.show(context),
-                ),
+                // Sidebar Navigation (Desktop / Tablet)
+                if (!isMobile)
+                  AppSidebar(
+                    isCollapsed: effectiveCollapsed,
+                    onToggleCollapse: () => setState(() => _isCollapsed = !_isCollapsed),
+                  ),
+
+                // Main Screen Area (TopBar + Dynamic Screen View)
                 Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: KeyedSubtree(
-                      key: ValueKey(clinic.currentNavIndex),
-                      child: _buildScreen(clinic.currentNavIndex),
-                    ),
+                  child: Column(
+                    children: [
+                      AppTopBar(
+                        onToggleSidebar: () {
+                          if (isMobile) {
+                            _scaffoldKey.currentState?.openDrawer();
+                          } else {
+                            setState(() => _isCollapsed = !_isCollapsed);
+                          }
+                        },
+                        onOpenAddPatient: () => AddPatientDialog.show(context),
+                        onOpenAddAppointment: () => AddAppointmentDialog.show(context),
+                      ),
+                      if (clinic.isLoadingRemote)
+                        const LinearProgressIndicator(
+                          minHeight: 2,
+                          backgroundColor: Colors.transparent,
+                        ),
+                      if (clinic.hasRemoteError)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          color: const Color(0xFFFEF2F2),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.cloud_off_rounded, color: Color(0xFFDC2626), size: 20),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  clinic.remoteDataError!,
+                                  style: const TextStyle(
+                                    color: Color(0xFF991B1B),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: () => clinic.refreshRemoteData(),
+                                icon: const Icon(Icons.refresh, size: 16, color: Color(0xFFDC2626)),
+                                label: const Text('Retry', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.bold)),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close, size: 16, color: Color(0xFF991B1B)),
+                                onPressed: () => clinic.clearRemoteError(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      Expanded(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: KeyedSubtree(
+                            key: ValueKey(clinic.currentNavIndex),
+                            child: _buildScreen(clinic.currentNavIndex),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
+            const AiFloatingChatbot(),
+          ],
+        ),
+      );
   }
 }

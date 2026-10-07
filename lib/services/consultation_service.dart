@@ -21,8 +21,8 @@ class ConsultationService {
   }) async {
     final client = _supabase.client;
     if (client == null) {
-      debugPrint('[ConsultationService] Supabase not active. Saved locally.');
-      return true;
+      debugPrint('[ConsultationService] Supabase not active. Cannot save consultation.');
+      return false;
     }
 
     try {

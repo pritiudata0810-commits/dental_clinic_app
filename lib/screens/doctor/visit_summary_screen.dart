@@ -4,6 +4,10 @@ import '../../theme/app_text_styles.dart';
 import '../../widgets/common/app_card.dart';
 import '../../widgets/common/app_button.dart';
 import '../../services/consultation_service.dart';
+import '../../state/clinic_scope.dart';
+import '../../models/tooth_record.dart';
+import '../../models/billing.dart';
+import '../../models/patient.dart';
 
 class VisitSummaryScreen extends StatelessWidget {
   final String patientName;
@@ -13,6 +17,7 @@ class VisitSummaryScreen extends StatelessWidget {
   final String treatment;
   final String procedureCode;
   final List<Map<String, String>> medicines;
+  final int? toothNumber;
 
   const VisitSummaryScreen({
     super.key,
@@ -22,6 +27,7 @@ class VisitSummaryScreen extends StatelessWidget {
     this.diagnosis = 'Generalized mild chronic marginal gingivitis.',
     this.treatment = 'Full mouth ultrasonic scaling completed. Polishing with fine abrasive paste.',
     this.procedureCode = 'D1110 - Prophylaxis Adult',
+    this.toothNumber,
     this.medicines = const [
       {
         'name': 'Chlorhexidine 0.2% Mouthwash',
@@ -203,8 +209,11 @@ class VisitSummaryScreen extends StatelessWidget {
               child: AppButton(
                 text: 'Save & Complete Clinical Visit',
                 icon: Icons.check_circle_outline,
-                onPressed: () {
-                  ConsultationService().saveConsultation(
+                onPressed: () async {
+                  final clinic = context.clinic;
+                  final nav = Navigator.of(context);
+
+                  final success = await ConsultationService().saveConsultation(
                     patientId: 'P-1001',
                     patientName: patientName,
                     doctorId: 'DOC-01',
@@ -217,6 +226,98 @@ class VisitSummaryScreen extends StatelessWidget {
                     totalFee: 1200.0,
                     medicines: medicines,
                   );
+
+                  if (!context.mounted) return;
+
+                  if (!success) {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Save Failed'),
+                        content: const Text(
+                          'Could not save clinical consultation to Supabase database. Please check your connection and try again.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('OK'),
+                          ),
+                        ],
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (toothNumber != null && ToothRecord.isValidFdi(toothNumber!)) {
+                    await clinic.addToothRecord(
+                      ToothRecord(
+                        id: 'TR-${DateTime.now().millisecondsSinceEpoch}',
+                        patientId: 'P-1001',
+                        toothNumber: toothNumber!,
+                        status: ToothStatus.filling,
+                        procedure: procedureCode.isNotEmpty ? procedureCode : reason,
+                        clinicalFinding: examination.isNotEmpty ? examination : diagnosis,
+                        notes: treatment,
+                        dentistName: 'Dr. Rahul Sharma',
+                        dentistId: 'DOC-01',
+                        treatmentDate: DateTime.now(),
+                        completionStatus: ToothTreatmentCompletionStatus.completed,
+                        createdAt: DateTime.now(),
+                        updatedAt: DateTime.now(),
+                      ),
+                    );
+                  }
+
+                  // Automatically generate and persist official patient invoice to Supabase
+                  final matchingPatient = clinic.patients.cast<Patient?>().firstWhere(
+                    (p) => p?.name.toLowerCase() == patientName.toLowerCase(),
+                    orElse: () => clinic.patients.isNotEmpty ? clinic.patients.first : null,
+                  );
+
+                  final String actualPatientId = matchingPatient?.id ?? 'P-1001';
+                  final String actualPatientPhone = matchingPatient?.phone ?? '9876543210';
+                  final now = DateTime.now();
+
+                  final visitInvoice = Invoice(
+                    id: 'INV-${now.millisecondsSinceEpoch}',
+                    invoiceNumber: 'INV-2026-${now.millisecondsSinceEpoch.toString().substring(7)}',
+                    patientId: actualPatientId,
+                    patientName: patientName,
+                    patientPhone: actualPatientPhone,
+                    doctorId: 'DOC-01',
+                    doctorName: 'Dr. Rahul Sharma',
+                    date: now,
+                    items: [
+                      const InvoiceItem(
+                        description: 'Doctor Consultation Fee',
+                        quantity: 1,
+                        unitPrice: 500.0,
+                        amount: 500.0,
+                      ),
+                      InvoiceItem(
+                        description: procedureCode.isNotEmpty ? procedureCode : 'Full Mouth Ultrasonic Scaling',
+                        quantity: 1,
+                        unitPrice: 700.0,
+                        amount: 700.0,
+                      ),
+                    ],
+                    subtotal: 1200.0,
+                    discount: 0.0,
+                    tax: 0.0,
+                    totalAmount: 1200.0,
+                    paidAmount: 0.0,
+                    balanceAmount: 1200.0,
+                    status: PaymentStatus.pending,
+                    paymentMethod: 'Pending Counter Payment',
+                    notes: 'Clinical consultation & procedures completed',
+                    receiptNumber: '',
+                    receivedBy: '',
+                    paymentStatusText: 'Pending',
+                  );
+
+                  await clinic.addInvoice(visitInvoice);
+
+                  if (!context.mounted) return;
 
                   showDialog(
                     context: context,
@@ -232,7 +333,7 @@ class VisitSummaryScreen extends StatelessWidget {
                             Navigator.pop(ctx);
                             // Return back to doctor dashboard / patient profile
                             int count = 0;
-                            Navigator.of(context).popUntil((_) => count++ >= 4);
+                            nav.popUntil((_) => count++ >= 4);
                           },
                           child: const Text('Done', style: TextStyle(color: Colors.white)),
                         ),

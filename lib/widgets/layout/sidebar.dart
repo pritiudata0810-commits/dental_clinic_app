@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../state/clinic_scope.dart';
+import '../../services/auth_service.dart';
 
 class SidebarItem {
   final String title;
@@ -241,7 +242,12 @@ class AppSidebar extends StatelessWidget {
                 const SizedBox(height: 10),
                 InkWell(
                   borderRadius: BorderRadius.circular(8),
-                  onTap: () => Navigator.of(context).pushReplacementNamed('/login'),
+                  onTap: () async {
+                    await AuthService.instance.signOut();
+                    if (context.mounted) {
+                      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                    }
+                  },
                   child: Container(
                     height: 36,
                     padding: const EdgeInsets.symmetric(horizontal: 10),

@@ -11,6 +11,9 @@ import 'doctor_profile_screen.dart';
 import 'clinic_profile_screen.dart';
 import 'notifications_screen.dart';
 import 'settings_screen.dart';
+import '../../services/auth_service.dart';
+import '../../widgets/chat/ai_floating_button.dart';
+import '../../state/clinic_scope.dart';
 
 class MainShell extends StatefulWidget {
   final int initialIndex;
@@ -217,7 +220,12 @@ class _MainShellState extends State<MainShell> {
                 ? IconButton(
                     icon: const Icon(Icons.logout_rounded, size: 20, color: Colors.white70),
                     tooltip: 'Sign Out',
-                    onPressed: () => Navigator.of(context).pushReplacementNamed('/login'),
+                    onPressed: () async {
+                      await AuthService.instance.signOut();
+                      if (mounted) {
+                        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                      }
+                    },
                   )
                 : Row(
                     children: [
@@ -240,19 +248,30 @@ class _MainShellState extends State<MainShell> {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Dr. Sharma', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white), overflow: TextOverflow.ellipsis),
-                            Text('Chair 01 • Active', style: TextStyle(fontSize: 11, color: Color(0xFFD1FAE5), fontWeight: FontWeight.w600)),
+                            Text(
+                              AuthService.instance.currentProfile?.fullName.isNotEmpty == true
+                                  ? AuthService.instance.currentProfile!.fullName
+                                  : 'Dr. Sharma',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const Text('Chair 01 • Active', style: TextStyle(fontSize: 11, color: Color(0xFFD1FAE5), fontWeight: FontWeight.w600)),
                           ],
                         ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.logout_rounded, size: 18, color: Colors.white),
                         tooltip: 'Sign Out',
-                        onPressed: () => Navigator.of(context).pushReplacementNamed('/login'),
+                        onPressed: () async {
+                          await AuthService.instance.signOut();
+                          if (mounted) {
+                            Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                          }
+                        },
                       ),
                     ],
                   ),
@@ -279,126 +298,168 @@ class _MainShellState extends State<MainShell> {
               ),
             )
           : null,
-      body: Row(
+      body: Stack(
         children: [
-          // Doctor Dedicated Sidebar (Desktop / Tablet)
-          if (!isMobile)
-            _buildDoctorSidebar(effectiveCollapsed, inDrawer: false),
+          Row(
+            children: [
+              // Doctor Dedicated Sidebar (Desktop / Tablet)
+              if (!isMobile)
+                _buildDoctorSidebar(effectiveCollapsed, inDrawer: false),
 
-          // Main Doctor Console Workspace
-          Expanded(
-            child: Column(
-              children: [
-                // Doctor Top Bar
-                Container(
-                  height: 64,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  decoration: const BoxDecoration(
-                    color: AppColors.surface,
-                    border: Border(bottom: BorderSide(color: AppColors.borderLight)),
-                  ),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: Icon(isMobile ? Icons.menu : (effectiveCollapsed ? Icons.menu : Icons.menu_open), size: 20),
-                        tooltip: isMobile ? 'Open Menu' : (effectiveCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'),
-                        onPressed: () {
-                          if (isMobile) {
-                            _scaffoldKey.currentState?.openDrawer();
-                          } else {
-                            setState(() => _isCollapsed = !_isCollapsed);
-                          }
-                        },
+              // Main Doctor Console Workspace
+              Expanded(
+                child: Column(
+                  children: [
+                    // Doctor Top Bar
+                    Container(
+                      height: 64,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      decoration: const BoxDecoration(
+                        color: AppColors.surface,
+                        border: Border(bottom: BorderSide(color: AppColors.borderLight)),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _navItems[_selectedIndex]['title'] as String,
-                              style: AppTextStyles.h3.copyWith(fontSize: 17),
-                              overflow: TextOverflow.ellipsis,
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: Icon(isMobile ? Icons.menu : (effectiveCollapsed ? Icons.menu : Icons.menu_open), size: 20),
+                            tooltip: isMobile ? 'Open Menu' : (effectiveCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'),
+                            onPressed: () {
+                              if (isMobile) {
+                                _scaffoldKey.currentState?.openDrawer();
+                              } else {
+                                setState(() => _isCollapsed = !_isCollapsed);
+                              }
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _navItems[_selectedIndex]['title'] as String,
+                                  style: AppTextStyles.h3.copyWith(fontSize: 17),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const Text(
+                                  'Operatory 01 • Dr. Sharma Consultation Console',
+                                  style: AppTextStyles.caption,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
                             ),
-                            const Text(
-                              'Operatory 01 • Dr. Sharma Consultation Console',
-                              style: AppTextStyles.caption,
-                              overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(width: 12),
+
+                          // Responsive Action: Book Appointment
+                          if (screenWidth >= 880) ...[
+                            AppButton.outline(
+                              text: '+ New Appointment',
+                              height: 36,
+                              icon: Icons.calendar_today,
+                              onPressed: () => AddAppointmentDialog.show(context),
+                            ),
+                            const SizedBox(width: 8),
+                          ] else ...[
+                            IconButton(
+                              icon: const Icon(Icons.calendar_today, size: 20, color: AppColors.primary),
+                              tooltip: 'New Appointment',
+                              onPressed: () => AddAppointmentDialog.show(context),
+                            ),
+                          ],
+
+                          // Responsive Action: Start Consultation
+                          if (screenWidth >= 720) ...[
+                            AppButton(
+                              text: 'Start Consultation',
+                              height: 36,
+                              icon: Icons.play_arrow_rounded,
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const VisitNotesScreen()),
+                                );
+                              },
+                            ),
+                          ] else ...[
+                            IconButton(
+                              icon: const Icon(Icons.play_circle_fill, size: 22, color: AppColors.primary),
+                              tooltip: 'Start Consultation',
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const VisitNotesScreen()),
+                                );
+                              },
+                            ),
+                          ],
+
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: const Icon(Icons.notifications_none_rounded, size: 22, color: AppColors.textPrimary),
+                            tooltip: 'Doctor Alerts',
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    if (context.clinic.isLoadingRemote)
+                      const LinearProgressIndicator(
+                        minHeight: 2,
+                        backgroundColor: Colors.transparent,
+                      ),
+                    if (context.clinic.hasRemoteError)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        color: const Color(0xFFFEF2F2),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.cloud_off_rounded, color: Color(0xFFDC2626), size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                context.clinic.remoteDataError!,
+                                style: const TextStyle(
+                                  color: Color(0xFF991B1B),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: () => context.clinic.refreshRemoteData(),
+                              icon: const Icon(Icons.refresh, size: 16, color: Color(0xFFDC2626)),
+                              label: const Text('Retry', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.bold)),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 16, color: Color(0xFF991B1B)),
+                              onPressed: () => context.clinic.clearRemoteError(),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 12),
 
-                      // Responsive Action: Book Appointment
-                      if (screenWidth >= 880) ...[
-                        AppButton.outline(
-                          text: '+ New Appointment',
-                          height: 36,
-                          icon: Icons.calendar_today,
-                          onPressed: () => AddAppointmentDialog.show(context),
-                        ),
-                        const SizedBox(width: 8),
-                      ] else ...[
-                        IconButton(
-                          icon: const Icon(Icons.calendar_today, size: 20, color: AppColors.primary),
-                          tooltip: 'New Appointment',
-                          onPressed: () => AddAppointmentDialog.show(context),
-                        ),
-                      ],
-
-                      // Responsive Action: Start Consultation
-                      if (screenWidth >= 720) ...[
-                        AppButton(
-                          text: 'Start Consultation',
-                          height: 36,
-                          icon: Icons.play_arrow_rounded,
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const VisitNotesScreen()),
-                            );
-                          },
-                        ),
-                      ] else ...[
-                        IconButton(
-                          icon: const Icon(Icons.play_circle_fill, size: 22, color: AppColors.primary),
-                          tooltip: 'Start Consultation',
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const VisitNotesScreen()),
-                            );
-                          },
-                        ),
-                      ],
-
-                      const SizedBox(width: 4),
-                      IconButton(
-                        icon: const Icon(Icons.notifications_none_rounded, size: 22, color: AppColors.textPrimary),
-                        tooltip: 'Doctor Alerts',
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-                          );
-                        },
+                    // Active Doctor Screen Body
+                    Expanded(
+                      child: IndexedStack(
+                        index: _selectedIndex,
+                        children: _screens,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-
-                // Active Doctor Screen Body
-                Expanded(
-                  child: IndexedStack(
-                    index: _selectedIndex,
-                    children: _screens,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
+          const AiFloatingChatbot(),
         ],
       ),
     );

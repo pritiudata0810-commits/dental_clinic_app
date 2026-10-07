@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/common/app_card.dart';
+import '../../services/auth_service.dart';
 import 'about_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -139,9 +140,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.lock_outline, color: AppColors.primary),
                     title: const Text('Doctor Session Authentication', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                    subtitle: const Text('Dr. Sharma • Chair 01 Console Session Active', style: AppTextStyles.caption),
+                    subtitle: Text(
+                      '${AuthService.instance.currentProfile?.fullName ?? "Dr. Sharma"} • Console Session Active',
+                      style: AppTextStyles.caption,
+                    ),
                     trailing: TextButton(
-                      onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
+                      onPressed: () async {
+                        await AuthService.instance.signOut();
+                        if (context.mounted) {
+                          Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                        }
+                      },
                       child: const Text('Sign Out', style: TextStyle(color: Color(0xFFDC2626))),
                     ),
                   ),

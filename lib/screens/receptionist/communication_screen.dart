@@ -196,7 +196,7 @@ class _CommunicationScreenState extends State<CommunicationScreen> with SingleTi
         separatorBuilder: (c, i) => const Divider(height: 1, color: AppColors.borderLight),
         itemBuilder: (context, index) {
           final call = calls[index];
-          final isMissed = call.status == CallStatus.missed;
+          final isMissed = call.status == CallStatus.missed || call.status == CallStatus.failed;
 
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -205,7 +205,11 @@ class _CommunicationScreenState extends State<CommunicationScreen> with SingleTi
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: isMissed ? const Color(0xFFFFE4E6) : const Color(0xFFD1FAE5),
+                    color: isMissed
+                        ? const Color(0xFFFFE4E6)
+                        : (call.status == CallStatus.dialerOpened
+                            ? const Color(0xFFEFF6FF)
+                            : const Color(0xFFD1FAE5)),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -215,7 +219,11 @@ class _CommunicationScreenState extends State<CommunicationScreen> with SingleTi
                             ? Icons.call_missed_rounded
                             : Icons.call_made_rounded,
                     size: 16,
-                    color: isMissed ? const Color(0xFFBE123C) : const Color(0xFF047857),
+                    color: isMissed
+                        ? const Color(0xFFBE123C)
+                        : (call.status == CallStatus.dialerOpened
+                            ? const Color(0xFF2563EB)
+                            : const Color(0xFF047857)),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -238,7 +246,22 @@ class _CommunicationScreenState extends State<CommunicationScreen> with SingleTi
                         DateFormat('hh:mm a').format(call.timestamp),
                         style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600),
                       ),
-                      Text(call.durationFormatted, style: AppTextStyles.caption),
+                      const SizedBox(height: 2),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: call.status.badgeColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          call.status.displayName,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: call.status.badgeColor,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),

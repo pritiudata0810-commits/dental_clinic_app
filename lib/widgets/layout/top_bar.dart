@@ -5,6 +5,7 @@ import '../../theme/app_text_styles.dart';
 import '../../state/clinic_scope.dart';
 import '../common/search_bar_field.dart';
 import '../common/app_button.dart';
+import '../chat/ai_chat_panel.dart';
 
 class AppTopBar extends StatelessWidget {
   final VoidCallback onToggleSidebar;
@@ -85,64 +86,100 @@ class AppTopBar extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text('Notifications', style: AppTextStyles.h4),
-                            TextButton(
-                              onPressed: () {
-                                clinic.markAllNotificationsAsRead();
-                                Navigator.of(ctx).pop();
-                              },
-                              style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                              child: const Text('Mark all read', style: TextStyle(fontSize: 12)),
-                            ),
+                            if (notifications.any((n) => !n.isRead))
+                              TextButton(
+                                onPressed: () {
+                                  clinic.markAllNotificationsAsRead();
+                                  Navigator.of(ctx).pop();
+                                },
+                                style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                                child: const Text('Mark all read', style: TextStyle(fontSize: 12)),
+                              ),
                           ],
                         ),
                       ),
                       const Divider(height: 1, color: AppColors.borderLight),
-                      // Notifications list
-                      Flexible(
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          padding: EdgeInsets.zero,
-                          itemCount: notifications.length,
-                          separatorBuilder: (c, i) => const Divider(height: 1, color: AppColors.borderLight),
-                          itemBuilder: (c, i) {
-                            final n = notifications[i];
-                            return ListTile(
-                              dense: true,
-                              tileColor: n.isRead ? Colors.transparent : AppColors.primaryLight.withValues(alpha: 0.3),
-                              leading: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: n.accentColor.withValues(alpha: 0.12),
-                                  shape: BoxShape.circle,
+                      // Notifications list or empty state
+                      if (notifications.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.notifications_none_outlined,
+                                  size: 40,
+                                  color: AppColors.textSecondary,
                                 ),
-                                child: Icon(n.icon, size: 16, color: n.accentColor),
-                              ),
-                              title: Text(
-                                n.title,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: n.isRead ? FontWeight.w500 : FontWeight.w700,
-                                  color: AppColors.textPrimary,
+                                SizedBox(height: 10),
+                                Text(
+                                  'No notifications yet',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
                                 ),
-                              ),
-                              subtitle: Text(
-                                n.message,
-                                style: AppTextStyles.caption,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              trailing: Text(
-                                DateFormat('hh:mm a').format(n.timestamp),
-                                style: AppTextStyles.caption.copyWith(fontSize: 10),
-                              ),
-                              onTap: () {
-                                clinic.markNotificationAsRead(n.id);
-                                Navigator.of(ctx).pop();
-                              },
-                            );
-                          },
+                                SizedBox(height: 4),
+                                Text(
+                                  'New clinical alerts and updates will appear here.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        Flexible(
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            padding: EdgeInsets.zero,
+                            itemCount: notifications.length,
+                            separatorBuilder: (c, i) => const Divider(height: 1, color: AppColors.borderLight),
+                            itemBuilder: (c, i) {
+                              final n = notifications[i];
+                              return ListTile(
+                                dense: true,
+                                tileColor: n.isRead ? Colors.transparent : AppColors.primaryLight.withValues(alpha: 0.3),
+                                leading: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: n.accentColor.withValues(alpha: 0.12),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(n.icon, size: 16, color: n.accentColor),
+                                ),
+                                title: Text(
+                                  n.title,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: n.isRead ? FontWeight.w500 : FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  n.message,
+                                  style: AppTextStyles.caption,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                trailing: Text(
+                                  DateFormat('hh:mm a').format(n.timestamp),
+                                  style: AppTextStyles.caption.copyWith(fontSize: 10),
+                                ),
+                                onTap: () {
+                                  clinic.markNotificationAsRead(n.id);
+                                  Navigator.of(ctx).pop();
+                                },
+                              );
+                            },
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -223,6 +260,27 @@ class AppTopBar extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
               ],
+
+              // AI Assistant Quick Trigger
+              IconButton(
+                icon: const Icon(Icons.auto_awesome, color: AppColors.primary, size: 20),
+                splashRadius: 20,
+                tooltip: 'SmileCare AI Assistant',
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: true,
+                    builder: (ctx) => Dialog(
+                      backgroundColor: Colors.transparent,
+                      insetPadding: const EdgeInsets.all(20),
+                      child: Center(
+                        child: AiChatPanel(onClose: () => Navigator.of(ctx).pop()),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 4),
 
               // Notification Bell with badge
               Stack(

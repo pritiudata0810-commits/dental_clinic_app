@@ -422,11 +422,13 @@ class _CallReminderCard extends StatelessWidget {
           patientId: reminder.patientId,
           patientName: reminder.patientName,
           phoneNumber: reminder.phoneNumber,
-        );
-        clinic.updateReminderStatus(
-          reminder.id,
-          ReminderStatus.called,
-          lastAttempt: 'Today just now - Call initiated',
+          onCallInitiated: () {
+            clinic.updateReminderStatus(
+              reminder.id,
+              ReminderStatus.called,
+              lastAttempt: 'Today just now - Dialer opened',
+            );
+          },
         );
       },
     );
@@ -448,6 +450,9 @@ class _CallReminderCard extends StatelessWidget {
         patientId: reminder.patientId,
         patientName: reminder.patientName,
         phoneNumber: reminder.phoneNumber,
+        appointmentDate: reminder.appointmentDate,
+        appointmentTime: reminder.appointmentTime,
+        doctorName: reminder.doctorName,
       ),
     );
   }
@@ -469,6 +474,9 @@ class _CallReminderCard extends StatelessWidget {
         patientId: reminder.patientId,
         patientName: reminder.patientName,
         phoneNumber: reminder.phoneNumber,
+        appointmentDate: reminder.appointmentDate,
+        appointmentTime: reminder.appointmentTime,
+        doctorName: reminder.doctorName,
       ),
     );
   }

@@ -122,7 +122,7 @@ class _AddAppointmentDialogState extends State<AddAppointmentDialog> {
     return isBooked ? SlotStatus.booked : SlotStatus.available;
   }
 
-  void _saveAppointment() {
+  Future<void> _saveAppointment() async {
     if (_formKey.currentState?.validate() ?? false) {
       final clinic = context.clinic;
       final patient = clinic.patients.firstWhere((p) => p.id == _selectedPatientId);
@@ -165,12 +165,21 @@ class _AddAppointmentDialogState extends State<AddAppointmentDialog> {
         notes: _notesController.text.trim(),
       );
 
-      clinic.addAppointment(newApt);
-      Navigator.of(context).pop();
-      AppFeedback.showSuccess(
-        context,
-        'Appointment booked! ${patient.name} with ${doctor.name} on ${DateFormat('dd MMM').format(dt)} at $_selectedSlotTime',
-      );
+      final success = await clinic.addAppointment(newApt);
+      if (!mounted) return;
+
+      if (success) {
+        Navigator.of(context).pop();
+        AppFeedback.showSuccess(
+          context,
+          'Appointment booked! ${patient.name} with ${doctor.name} on ${DateFormat('dd MMM').format(dt)} at $_selectedSlotTime',
+        );
+      } else {
+        AppFeedback.showError(
+          context,
+          'Failed to book appointment: Doctor ${doctor.name} already has an active appointment at $_selectedSlotTime or database error occurred.',
+        );
+      }
     }
   }
 
@@ -298,6 +307,7 @@ class _AddAppointmentDialogState extends State<AddAppointmentDialog> {
                             labelText: 'Attending Doctor & Operatory *',
                             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           ),
+                          validator: (v) => (v == null || v.isEmpty) ? 'Please select an attending doctor' : null,
                           items: doctors.map((d) {
                             return DropdownMenuItem(
                               value: d.id,
@@ -415,6 +425,7 @@ class _AddAppointmentDialogState extends State<AddAppointmentDialog> {
                             labelText: 'Select Patient *',
                             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           ),
+                          validator: (v) => (v == null || v.isEmpty) ? 'Please select a patient' : null,
                           items: patients.map((p) {
                             return DropdownMenuItem(
                               value: p.id,

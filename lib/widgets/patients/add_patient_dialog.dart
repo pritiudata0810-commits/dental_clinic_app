@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../models/patient.dart';
@@ -28,9 +29,11 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
   final _emailController = TextEditingController();
   final _dobController = TextEditingController();
   final _addressController = TextEditingController();
-  final _emergencyController = TextEditingController();
   final _allergiesController = TextEditingController();
   final _notesController = TextEditingController();
+
+  DateTime? _selectedDob;
+  int? _calculatedAge;
 
   String _gender = 'Male';
   String _bloodGroup = 'O+';
@@ -53,13 +56,32 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
     _emailController.dispose();
     _dobController.dispose();
     _addressController.dispose();
-    _emergencyController.dispose();
     _allergiesController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
-  void _savePatient() {
+  Future<void> _selectDateOfBirth() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDob ?? DateTime(1995, 1, 1),
+      firstDate: DateTime(1900),
+      lastDate: now,
+    );
+    if (picked != null) {
+      final age = now.year -
+          picked.year -
+          ((now.month < picked.month || (now.month == picked.month && now.day < picked.day)) ? 1 : 0);
+      setState(() {
+        _selectedDob = picked;
+        _calculatedAge = age;
+        _dobController.text = DateFormat('dd MMM yyyy').format(picked);
+      });
+    }
+  }
+
+  Future<void> _savePatient() async {
     if (_formKey.currentState?.validate() ?? false) {
       final clinic = context.clinic;
       final newId = 'P-${1000 + clinic.patients.length + 1}';
@@ -75,10 +97,12 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
         email: _emailController.text.trim().isNotEmpty
             ? _emailController.text.trim()
             : '${_nameController.text.trim().toLowerCase().replaceAll(' ', '.')}@gmail.com',
-        dateOfBirth: _dobController.text.trim().isNotEmpty ? _dobController.text.trim() : '15 Jan 1995',
+        dateOfBirth: _dobController.text.trim(),
         gender: _gender,
-        address: _addressController.text.trim().isNotEmpty ? _addressController.text.trim() : 'Bengaluru, India',
-        emergencyContact: _emergencyController.text.trim().isNotEmpty ? _emergencyController.text.trim() : 'Next of kin',
+        address: _addressController.text.trim().isNotEmpty
+            ? _addressController.text.trim()
+            : 'Bengaluru, India',
+        emergencyContact: '',
         assignedDoctorId: _assignedDoctorId ?? 'DOC-01',
         assignedDoctorName: _assignedDoctorName ?? 'Dr. Rahul Sharma',
         lastVisit: 'New Registration',
@@ -88,11 +112,18 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
         allergies: allergiesList,
         notes: _notesController.text.trim(),
         registrationDate: DateTime.now(),
+        age: _calculatedAge != null ? '$_calculatedAge' : '',
       );
 
-      clinic.addPatient(newPatient);
-      Navigator.of(context).pop();
-      AppFeedback.showSuccess(context, 'Patient ${newPatient.name} ($newId) registered successfully!');
+      final success = await clinic.addPatient(newPatient);
+      if (!mounted) return;
+
+      if (success) {
+        Navigator.of(context).pop();
+        AppFeedback.showSuccess(context, 'Patient ${newPatient.name} ($newId) registered successfully!');
+      } else {
+        AppFeedback.showError(context, 'Failed to register patient in database. Please check your connection and try again.');
+      }
     }
   }
 
@@ -160,7 +191,11 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
                                   labelText: 'Full Name *',
                                   hintText: 'e.g. Ramesh Chandra',
                                 ),
-                                validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter name' : null,
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) return 'Please enter patient name';
+                                  if (v.trim().length < 2) return 'Name must be at least 2 characters';
+                                  return null;
+                                },
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -168,11 +203,17 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
                               flex: 2,
                               child: TextFormField(
                                 controller: _phoneController,
+                                keyboardType: TextInputType.phone,
                                 decoration: const InputDecoration(
                                   labelText: 'Mobile Number *',
                                   hintText: '+91 98765 00000',
                                 ),
-                                validator: (v) => (v == null || v.trim().length < 5) ? 'Enter valid phone' : null,
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) return 'Please enter mobile number';
+                                  final digits = v.replaceAll(RegExp(r'\D'), '');
+                                  if (digits.length < 10) return 'Enter valid 10-digit phone number';
+                                  return null;
+                                },
                               ),
                             ),
                           ],
@@ -197,10 +238,25 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
                             Expanded(
                               child: TextFormField(
                                 controller: _dobController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Date of Birth',
-                                  hintText: 'e.g. 14 May 1992',
+                                readOnly: true,
+                                onTap: _selectDateOfBirth,
+                                decoration: InputDecoration(
+                                  labelText: _calculatedAge != null
+                                      ? 'Date of Birth (${_calculatedAge}y) *'
+                                      : 'Date of Birth *',
+                                  hintText: 'Tap to select date',
+                                  suffixIcon: IconButton(
+                                    icon: const Icon(Icons.calendar_today_rounded, size: 18),
+                                    onPressed: _selectDateOfBirth,
+                                  ),
                                 ),
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) return 'Select date of birth';
+                                  if (_selectedDob != null && _selectedDob!.isAfter(DateTime.now())) {
+                                    return 'DOB cannot be future date';
+                                  }
+                                  return null;
+                                },
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -220,10 +276,17 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
                           decoration: const InputDecoration(
-                            labelText: 'Email Address',
+                            labelText: 'Email Address (Optional)',
                             hintText: 'patient@email.com',
                           ),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) return null;
+                            final emailRegex = RegExp(r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,4}$');
+                            if (!emailRegex.hasMatch(v.trim())) return 'Enter a valid email address';
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
@@ -238,42 +301,26 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
                         // Section: Medical & Assignment
                         Text('2. CLINIC ASSIGNMENT & MEDICAL NOTES', style: AppTextStyles.label.copyWith(color: AppColors.primaryDark)),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                value: _assignedDoctorId,
-                                isExpanded: true,
-                                decoration: const InputDecoration(labelText: 'Primary Assigned Doctor'),
-                                items: doctors.map((doc) {
-                                  return DropdownMenuItem(
-                                    value: doc.id,
-                                    child: Text(
-                                      '${doc.name} (${doc.specialization.split('&').first.trim()})',
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  );
-                                }).toList(),
-                                onChanged: (v) {
-                                  final doc = doctors.firstWhere((d) => d.id == v);
-                                  setState(() {
-                                    _assignedDoctorId = v;
-                                    _assignedDoctorName = doc.name;
-                                  });
-                                },
+                        DropdownButtonFormField<String>(
+                          value: _assignedDoctorId,
+                          isExpanded: true,
+                          decoration: const InputDecoration(labelText: 'Primary Assigned Doctor'),
+                          items: doctors.map((doc) {
+                            return DropdownMenuItem(
+                              value: doc.id,
+                              child: Text(
+                                '${doc.name} (${doc.specialization.split('&').first.trim()})',
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
-                                controller: _emergencyController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Emergency Contact',
-                                  hintText: 'Relation & Phone number',
-                                ),
-                              ),
-                            ),
-                          ],
+                            );
+                          }).toList(),
+                          onChanged: (v) {
+                            final doc = doctors.firstWhere((d) => d.id == v);
+                            setState(() {
+                              _assignedDoctorId = v;
+                              _assignedDoctorName = doc.name;
+                            });
+                          },
                         ),
                         const SizedBox(height: 12),
                         TextFormField(

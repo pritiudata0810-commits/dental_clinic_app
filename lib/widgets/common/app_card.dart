@@ -74,17 +74,22 @@ class _AppCardState extends State<AppCard> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(widget.title!, style: AppTextStyles.h4),
-                    if (widget.subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(widget.subtitle!, style: AppTextStyles.bodySmall),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.title!, style: AppTextStyles.h4),
+                      if (widget.subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(widget.subtitle!, style: AppTextStyles.bodySmall),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-                if (widget.trailing != null) widget.trailing!,
+                if (widget.trailing != null) ...[
+                  const SizedBox(width: 12),
+                  widget.trailing!,
+                ],
               ],
             ),
           ),

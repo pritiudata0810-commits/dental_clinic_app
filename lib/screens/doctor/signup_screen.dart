@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'main_shell.dart';
 
 class SignUpScreen extends StatelessWidget {
   const SignUpScreen({super.key});
@@ -377,12 +376,13 @@ class _OtpScreenState extends State<OtpScreen> {
                 height: 56,
                 child: ElevatedButton(
                    onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const MainShell(),
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Registration request recorded. Please sign in with your clinic credentials.'),
+                        backgroundColor: Color(0xFF1E1B4B),
                       ),
                     );
+                    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF5B84D7),

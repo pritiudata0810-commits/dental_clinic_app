@@ -5,6 +5,7 @@ import '../../widgets/common/app_card.dart';
 import '../../widgets/common/app_button.dart';
 import '../../state/clinic_scope.dart';
 import '../../models/appointment.dart';
+import '../../models/doctor.dart';
 
 class BookAppointmentScreen extends StatefulWidget {
   final String? preSelectedPatient;
@@ -16,20 +17,13 @@ class BookAppointmentScreen extends StatefulWidget {
 }
 
 class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
-  late String _selectedPatient;
+  final _formKey = GlobalKey<FormState>();
+  String? _selectedPatientId;
+  String? _selectedDoctorId;
   DateTime _selectedDate = DateTime.now();
   String _selectedTime = '10:30 AM';
   final _reasonController = TextEditingController(text: 'Routine Dental Consultation');
   final _notesController = TextEditingController();
-
-  final List<String> _patients = [
-    'Aarav Mehta',
-    'Ananya Patil',
-    'Rohan Deshmukh',
-    'Sneha Kulkarni',
-    'Vedant Joshi',
-    'Kavita Iyer',
-  ];
 
   final List<String> _timeSlots = [
     '09:00 AM',
@@ -47,9 +41,23 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _selectedPatient = widget.preSelectedPatient ?? _patients.first;
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final clinic = context.clinic;
+    if (_selectedPatientId == null && clinic.patients.isNotEmpty) {
+      if (widget.preSelectedPatient != null) {
+        final match = clinic.patients.cast<dynamic>().firstWhere(
+              (p) => p.name.toLowerCase() == widget.preSelectedPatient!.toLowerCase(),
+              orElse: () => clinic.patients.first,
+            );
+        _selectedPatientId = match.id;
+      } else {
+        _selectedPatientId = clinic.patients.first.id;
+      }
+    }
+    if (_selectedDoctorId == null && clinic.doctors.isNotEmpty) {
+      _selectedDoctorId = clinic.doctors.first.id;
+    }
   }
 
   @override
@@ -59,39 +67,96 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     super.dispose();
   }
 
-  void _bookAppointment() {
-    if (_reasonController.text.trim().isEmpty) {
+  Future<void> _bookAppointment() async {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    final clinic = context.clinic;
+    if (_selectedPatientId == null || !clinic.patients.any((p) => p.id == _selectedPatientId)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter reason for visit')),
+        const SnackBar(content: Text('Please select a valid patient')),
       );
       return;
     }
 
+    final patient = clinic.patients.firstWhere((p) => p.id == _selectedPatientId);
+    final doctor = clinic.doctors.firstWhere(
+      (d) => d.id == _selectedDoctorId,
+      orElse: () => clinic.doctors.isNotEmpty
+          ? clinic.doctors.first
+          : const Doctor(
+              id: 'DOC-01',
+              name: 'Dr. Sharma',
+              specialization: 'General Dentist',
+              qualification: 'BDS',
+              status: DoctorStatus.available,
+              nextAvailableTime: 'Now',
+              roomNumber: 'OPD 1',
+              phone: '',
+              avatarInitials: 'DS',
+            ),
+    );
+
+    int hour = 10;
+    int minute = 30;
+    try {
+      final parsed = TimeOfDay(
+        hour: int.parse(_selectedTime.split(':')[0]) + (_selectedTime.contains('PM') && !_selectedTime.startsWith('12') ? 12 : 0),
+        minute: int.parse(_selectedTime.split(':')[1].split(' ')[0]),
+      );
+      hour = parsed.hour;
+      minute = parsed.minute;
+    } catch (_) {}
+
+    final dt = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      hour,
+      minute,
+    );
+
     final newApt = Appointment(
       id: 'APT-${DateTime.now().millisecondsSinceEpoch % 100000}',
-      patientId: 'PT-01',
-      patientName: _selectedPatient,
-      patientPhone: '+91 98765 43210',
-      doctorId: 'DOC-01',
-      doctorName: 'Dr. Sharma',
-      dateTime: _selectedDate,
+      patientId: patient.id,
+      patientName: patient.name,
+      patientPhone: patient.phone,
+      doctorId: doctor.id,
+      doctorName: doctor.name,
+      dateTime: dt,
       timeString: _selectedTime,
       appointmentType: _reasonController.text.trim(),
       status: AppointmentStatus.confirmed,
-      tokenNumber: 'TK-19',
+      tokenNumber: 'TK-${clinic.appointments.length + 12}',
+      roomNumber: doctor.roomNumber,
       notes: _notesController.text.trim(),
     );
 
-    context.clinic.addAppointment(newApt);
+    final success = await context.clinic.addAppointment(newApt);
+    if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Appointment booked for $_selectedPatient at $_selectedTime')),
-    );
-    Navigator.pop(context);
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Appointment booked for ${patient.name} at $_selectedTime')),
+      );
+      Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Failed to book: Doctor already has an active appointment at this time or database error occurred.'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final clinic = context.clinic;
+    final patients = clinic.patients;
+    final doctors = clinic.doctors;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -106,32 +171,48 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AppCard(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Appointment Details', style: AppTextStyles.h4),
-                  const SizedBox(height: 16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppCard(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Appointment Details', style: AppTextStyles.h4),
+                    const SizedBox(height: 16),
 
-                  // Patient Selector
-                  DropdownButtonFormField<String>(
-                    value: _selectedPatient,
-                    decoration: const InputDecoration(
-                      labelText: 'Select Patient *',
-                      prefixIcon: Icon(Icons.person_outline),
-                      border: OutlineInputBorder(),
+                    // Patient Selector
+                    DropdownButtonFormField<String>(
+                      value: _selectedPatientId,
+                      decoration: const InputDecoration(
+                        labelText: 'Select Patient *',
+                        prefixIcon: Icon(Icons.person_outline),
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) => (v == null || v.isEmpty) ? 'Please select a patient' : null,
+                      items: patients.map((p) => DropdownMenuItem(value: p.id, child: Text('${p.name} (${p.phone})'))).toList(),
+                      onChanged: (v) => setState(() => _selectedPatientId = v),
                     ),
-                    items: _patients.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
-                    onChanged: (v) {
-                      if (v != null) setState(() => _selectedPatient = v);
-                    },
-                  ),
 
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 14),
+
+                    // Doctor Selector
+                    DropdownButtonFormField<String>(
+                      value: _selectedDoctorId,
+                      decoration: const InputDecoration(
+                        labelText: 'Select Doctor *',
+                        prefixIcon: Icon(Icons.medical_services_outlined),
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) => (v == null || v.isEmpty) ? 'Please select a doctor' : null,
+                      items: doctors.map((d) => DropdownMenuItem(value: d.id, child: Text('${d.name} (${d.specialization.split('&').first.trim()})'))).toList(),
+                      onChanged: (v) => setState(() => _selectedDoctorId = v),
+                    ),
+
+                    const SizedBox(height: 16),
 
                   // Date Picker Row
                   Row(
@@ -202,6 +283,12 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                       prefixIcon: Icon(Icons.healing_outlined),
                       border: OutlineInputBorder(),
                     ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Please enter reason for visit / procedure';
+                      }
+                      return null;
+                    },
                   ),
 
                   const SizedBox(height: 14),
@@ -234,6 +321,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }

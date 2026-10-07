@@ -20,6 +20,7 @@ class VisitNotesScreen extends StatefulWidget {
 }
 
 class _VisitNotesScreenState extends State<VisitNotesScreen> {
+  final _formKey = GlobalKey<FormState>();
   late TextEditingController _reasonController;
   final _examinationController = TextEditingController(
     text: 'Mild supragingival calculus in lower anterior lingual surfaces. Gingival margins slightly erythematous. No mobility detected.',
@@ -62,9 +63,11 @@ class _VisitNotesScreenState extends State<VisitNotesScreen> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Patient Banner
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -108,6 +111,7 @@ class _VisitNotesScreenState extends State<VisitNotesScreen> {
                       prefixIcon: Icon(Icons.help_outline),
                       border: OutlineInputBorder(),
                     ),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter reason for visit' : null,
                   ),
                   const SizedBox(height: 14),
 
@@ -120,6 +124,7 @@ class _VisitNotesScreenState extends State<VisitNotesScreen> {
                       alignLabelWithHint: true,
                       border: OutlineInputBorder(),
                     ),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter examination findings' : null,
                   ),
                   const SizedBox(height: 14),
 
@@ -132,6 +137,7 @@ class _VisitNotesScreenState extends State<VisitNotesScreen> {
                       alignLabelWithHint: true,
                       border: OutlineInputBorder(),
                     ),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter clinical diagnosis' : null,
                   ),
                   const SizedBox(height: 14),
 
@@ -158,6 +164,7 @@ class _VisitNotesScreenState extends State<VisitNotesScreen> {
                 text: 'Continue to Treatment (Step 2) →',
                 icon: Icons.arrow_forward_rounded,
                 onPressed: () {
+                  if (!(_formKey.currentState?.validate() ?? false)) return;
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -176,6 +183,7 @@ class _VisitNotesScreenState extends State<VisitNotesScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }

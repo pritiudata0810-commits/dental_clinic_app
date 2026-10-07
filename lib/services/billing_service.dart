@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/billing.dart';
+import '../models/payment_record.dart';
 import 'supabase_service.dart';
 
 class BillingService {
@@ -44,6 +45,7 @@ class BillingService {
     required double newBalanceAmount,
     required PaymentStatus newStatus,
     required String paymentMethod,
+    PaymentRecord? paymentRecord,
   }) async {
     final client = _supabase.client;
     if (client == null) return false;
@@ -55,10 +57,55 @@ class BillingService {
         'status': newStatus.name,
         'payment_method': paymentMethod,
       }).eq('id', invoiceId);
+
+      // Record to immutable payments ledger table if provided
+      if (paymentRecord != null) {
+        await insertPaymentRecord(paymentRecord);
+      }
+
       return true;
     } catch (e) {
       debugPrint('[BillingService] Error recording payment: $e');
       return false;
+    }
+  }
+
+  /// Inserts an immutable transaction row into public.payments ledger table
+  Future<bool> insertPaymentRecord(PaymentRecord payment) async {
+    final client = _supabase.client;
+    if (client == null) return false;
+
+    try {
+      await client.from('payments').insert(payment.toMap());
+      debugPrint('[BillingService] Payment ledger recorded: ${payment.id} for invoice ${payment.invoiceId}');
+      return true;
+    } catch (e) {
+      debugPrint('[BillingService] Error inserting payment record: $e');
+      return false;
+    }
+  }
+
+  /// Fetches historical payment transaction records for a specific invoice
+  Future<List<PaymentRecord>?> fetchPaymentsForInvoice(String invoiceId) async {
+    final client = _supabase.client;
+    if (client == null) {
+      debugPrint('[BillingService] Supabase not active. Cannot fetch payments.');
+      return null;
+    }
+
+    try {
+      final data = await client
+          .from('payments')
+          .select()
+          .eq('invoice_id', invoiceId)
+          .order('payment_date', ascending: false);
+
+      return (data as List<dynamic>)
+          .map((m) => PaymentRecord.fromMap(m as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('[BillingService] Error fetching payments for invoice: $e');
+      return null;
     }
   }
 

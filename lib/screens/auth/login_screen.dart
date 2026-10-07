@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../services/auth_service.dart';
+import '../../models/user_profile.dart';
 import '../../widgets/common/tooth_logo.dart';
 import '../../state/clinic_scope.dart';
 import '../doctor/signup_screen.dart';
@@ -67,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     }
 
     try {
-      final role = await _authService.signIn(
+      final UserProfile profile = await _authService.signIn(
         email: email,
         password: password,
       );
@@ -77,10 +78,24 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       // Trigger a live pull of Supabase records with authenticated credentials
       context.clinic.refreshRemoteData();
 
-      if (role == 'doctor') {
+      if (profile.isDoctor) {
         Navigator.of(context).pushReplacementNamed('/doctor');
       } else {
         Navigator.of(context).pushReplacementNamed('/receptionist');
+      }
+    } on ProfileNotFoundException catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.message;
+          _isLoading = false;
+        });
+      }
+    } on AuthServerException catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.message;
+          _isLoading = false;
+        });
       }
     } catch (e) {
       if (mounted) {

@@ -9,6 +9,7 @@ import '../../widgets/common/app_button.dart';
 import '../../widgets/common/status_badge.dart';
 import '../../widgets/common/search_bar_field.dart';
 import '../../widgets/billing/invoice_preview_dialog.dart';
+import '../../widgets/billing/create_invoice_dialog.dart';
 
 class BillingScreen extends StatefulWidget {
   const BillingScreen({super.key});
@@ -68,6 +69,12 @@ class _BillingScreenState extends State<BillingScreen> {
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(width: 16),
+              AppButton(
+                text: 'Create Invoice',
+                icon: Icons.add,
+                onPressed: () => CreateInvoiceDialog.show(context),
               ),
             ],
           ),

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
+import 'package:printing/printing.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../models/billing.dart';
 import '../../models/patient.dart';
 import '../../state/clinic_scope.dart';
+import '../../services/billing/bill_pdf_generator.dart';
 import '../common/app_button.dart';
 import '../common/toast_notification.dart';
 import 'printable_receipt_document.dart';
@@ -27,11 +30,20 @@ class InvoicePreviewDialog extends StatefulWidget {
 
 class _InvoicePreviewDialogState extends State<InvoicePreviewDialog> {
   ReceiptPaperFormat _selectedFormat = ReceiptPaperFormat.a4;
+  late Invoice _currentInvoice;
+  bool _isProcessingDocument = false;
 
-  void _showRecordPaymentModal(BuildContext context) {
+  @override
+  void initState() {
+    super.initState();
+    _currentInvoice = widget.invoice;
+  }
+
+  void _showRecordPaymentModal() {
     final controller = TextEditingController(
-      text: widget.invoice.balanceAmount.toStringAsFixed(0),
+      text: _currentInvoice.balanceAmount.toStringAsFixed(0),
     );
+    final refController = TextEditingController();
     String selectedMethod = 'Cash';
 
     showDialog(
@@ -41,7 +53,7 @@ class _InvoicePreviewDialogState extends State<InvoicePreviewDialog> {
           return Dialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
+              constraints: const BoxConstraints(maxWidth: 440),
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -51,7 +63,7 @@ class _InvoicePreviewDialogState extends State<InvoicePreviewDialog> {
                     const Text('Record Counter Payment', style: AppTextStyles.h4),
                     const SizedBox(height: 4),
                     Text(
-                      'Invoice: ${widget.invoice.invoiceNumber} • ${widget.invoice.patientName}',
+                      'Invoice: ${_currentInvoice.invoiceNumber} • ${_currentInvoice.patientName}',
                       style: AppTextStyles.bodySmall,
                     ),
                     const SizedBox(height: 20),
@@ -59,23 +71,36 @@ class _InvoicePreviewDialogState extends State<InvoicePreviewDialog> {
                       controller: controller,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
-                        labelText: 'Payment Amount (₹)',
+                        labelText: 'Payment Amount (₹) *',
                         prefixText: '₹ ',
+                        border: OutlineInputBorder(),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                     DropdownButtonFormField<String>(
                       value: selectedMethod,
-                      decoration: const InputDecoration(labelText: 'Payment Mode'),
+                      decoration: const InputDecoration(
+                        labelText: 'Payment Mode *',
+                        border: OutlineInputBorder(),
+                      ),
                       items: const [
                         DropdownMenuItem(value: 'Cash', child: Text('Cash at Counter')),
-                        DropdownMenuItem(value: 'UPI (GPay / PhonePe)', child: Text('UPI (GPay / PhonePe)')),
-                        DropdownMenuItem(value: 'Credit / Debit Card', child: Text('POS Card Machine')),
+                        DropdownMenuItem(value: 'UPI', child: Text('UPI (GPay / PhonePe / Paytm)')),
+                        DropdownMenuItem(value: 'POS Card', child: Text('POS Card Machine (Debit / Credit)')),
                         DropdownMenuItem(value: 'Net Banking', child: Text('Direct Bank Transfer')),
                       ],
                       onChanged: (val) {
                         if (val != null) setStateModal(() => selectedMethod = val);
                       },
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: refController,
+                      decoration: const InputDecoration(
+                        labelText: 'Transaction / UTR Ref (Optional)',
+                        hintText: 'e.g. UPI Ref / Card Last 4 Digits',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                     const SizedBox(height: 24),
                     Row(
@@ -89,15 +114,44 @@ class _InvoicePreviewDialogState extends State<InvoicePreviewDialog> {
                         AppButton.success(
                           text: 'Confirm & Settle',
                           icon: Icons.check,
-                          onPressed: () {
+                          onPressed: () async {
                             final amt = double.tryParse(controller.text) ?? 0.0;
-                            if (amt > 0) {
-                              context.clinic.recordPayment(widget.invoice.id, amt, selectedMethod);
-                              Navigator.of(ctx).pop();
-                              Navigator.of(context).pop();
+                            if (amt <= 0) {
+                              AppFeedback.showError(ctx, 'Please enter a valid payment amount greater than zero.');
+                              return;
+                            }
+                            if (selectedMethod.trim().isEmpty) {
+                              AppFeedback.showError(ctx, 'Please select a payment method.');
+                              return;
+                            }
+
+                            final clinic = context.clinic;
+                            final txRef = refController.text.trim();
+                            final success = await clinic.recordPayment(
+                              _currentInvoice.id,
+                              amt,
+                              selectedMethod,
+                              transactionRef: txRef.isNotEmpty ? txRef : null,
+                            );
+
+                            if (ctx.mounted) Navigator.of(ctx).pop();
+                            if (!mounted) return;
+                            if (success) {
+                              final updated = clinic.invoices.firstWhere(
+                                (inv) => inv.id == _currentInvoice.id,
+                                orElse: () => _currentInvoice,
+                              );
+                              setState(() {
+                                _currentInvoice = updated;
+                              });
                               AppFeedback.showSuccess(
                                 context,
-                                'Payment of ₹${NumberFormat('#,##0').format(amt)} settled via $selectedMethod',
+                                'Payment of ₹${NumberFormat('#,##0').format(amt)} recorded in ledger via $selectedMethod',
+                              );
+                            } else {
+                              AppFeedback.showError(
+                                context,
+                                'Failed to record payment in Supabase database. Please try again.',
                               );
                             }
                           },
@@ -114,51 +168,64 @@ class _InvoicePreviewDialogState extends State<InvoicePreviewDialog> {
     );
   }
 
-  void _triggerPrintView(BuildContext context, Patient? patient) {
-    // Open dedicated print preview screen where only the printable document is displayed
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (ctx) => Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.black87,
-            elevation: 0,
-            title: Text(
-              'Print Receipt - ${widget.invoice.invoiceNumber}',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.print_outlined),
-                tooltip: 'Send to Printer',
-                onPressed: () {
-                  AppFeedback.showSuccess(ctx, 'Print job sent to clinic thermal / laser printer');
-                },
-              ),
-              const SizedBox(width: 8),
-            ],
-          ),
-          body: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: PrintableReceiptDocument(
-                invoice: widget.invoice,
-                patient: patient,
-                format: _selectedFormat,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+  Future<void> _handlePrint(Patient? patient) async {
+    setState(() => _isProcessingDocument = true);
+    try {
+      final pdfBytes = await BillPdfGenerator.generateBillPdf(
+        invoice: _currentInvoice,
+        patient: patient,
+      );
+
+      final printed = await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdfBytes,
+        name: 'clinic_bill_${_currentInvoice.invoiceNumber}.pdf',
+      );
+
+      if (!mounted) return;
+      setState(() => _isProcessingDocument = false);
+
+      if (printed) {
+        AppFeedback.showSuccess(context, 'Print document dispatched for ${_currentInvoice.invoiceNumber}');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isProcessingDocument = false);
+      AppFeedback.showError(context, 'Printing failed: $e');
+    }
+  }
+
+  Future<void> _handleDownload(Patient? patient) async {
+    setState(() => _isProcessingDocument = true);
+    try {
+      final pdfBytes = await BillPdfGenerator.generateBillPdf(
+        invoice: _currentInvoice,
+        patient: patient,
+      );
+
+      final safeInvId = _currentInvoice.invoiceNumber.replaceAll(RegExp(r'[^\w\-]'), '_');
+      final fileName = 'clinic_bill_$safeInvId.pdf';
+
+      await Printing.sharePdf(
+        bytes: pdfBytes,
+        filename: fileName,
+      );
+
+      if (!mounted) return;
+      setState(() => _isProcessingDocument = false);
+
+      AppFeedback.showSuccess(context, 'Bill downloaded / ready: $fileName');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isProcessingDocument = false);
+      AppFeedback.showError(context, 'Bill download failed: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final clinic = context.clinic;
     final patient = clinic.patients.cast<Patient?>().firstWhere(
-      (p) => p?.id == widget.invoice.patientId,
+      (p) => p?.id == _currentInvoice.patientId,
       orElse: () => null,
     );
 
@@ -171,12 +238,11 @@ class _InvoicePreviewDialogState extends State<InvoicePreviewDialog> {
         constraints: const BoxConstraints(maxWidth: 880, maxHeight: 920),
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFF3F4F6),
+            color: const Color(0xFF1E293B), // Dark slate surrounding workbench backdrop
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x26000000),
+                color: Color(0x33000000),
                 blurRadius: 24,
                 offset: Offset(0, 8),
               ),
@@ -185,31 +251,25 @@ class _InvoicePreviewDialogState extends State<InvoicePreviewDialog> {
           child: Column(
             children: [
               // ----------------------------------------------------
-              // TOP ACTION TOOLBAR (DOCUMENT VIEWER CONTROLS)
+              // TOP BAR: Metadata, Format Switcher & Print Actions
               // ----------------------------------------------------
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                 decoration: const BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
+                  border: Border(
+                    bottom: BorderSide(color: Color(0xFF334155), width: 1),
                   ),
-                  border: Border(bottom: BorderSide(color: AppColors.border)),
                 ),
                 child: Row(
                   children: [
+                    // Icon & Title
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryLight,
+                        color: Colors.white.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(
-                        Icons.receipt_long_rounded,
-                        size: 20,
-                        color: AppColors.primaryDark,
-                      ),
+                      child: const Icon(Icons.receipt_long, color: Colors.white, size: 20),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -217,27 +277,28 @@ class _InvoicePreviewDialogState extends State<InvoicePreviewDialog> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Printable Clinic Invoice / Receipt',
-                            style: AppTextStyles.h4.copyWith(fontSize: 15),
-                            overflow: TextOverflow.ellipsis,
+                            'Official Clinic Receipt - ${_currentInvoice.invoiceNumber}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                           Text(
-                            '${widget.invoice.invoiceNumber} • ${widget.invoice.patientName}',
-                            style: AppTextStyles.caption,
-                            overflow: TextOverflow.ellipsis,
+                            '${_currentInvoice.patientName} (${_currentInvoice.patientPhone})  •  Status: ${_currentInvoice.status.label}',
+                            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
                           ),
                         ],
                       ),
                     ),
 
-                    // Paper Format Toggle
+                    // Paper Format Switcher (A4 vs 80mm Thermal)
                     if (!isNarrow) ...[
                       Container(
                         padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceMuted,
+                          color: const Color(0xFF0F172A),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.border),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -260,27 +321,36 @@ class _InvoicePreviewDialogState extends State<InvoicePreviewDialog> {
                       const SizedBox(width: 12),
                     ],
 
-                    // Print Button
-                    AppButton(
-                      text: 'Print Bill',
-                      icon: Icons.print_outlined,
+                    // Download PDF Button
+                    AppButton.ghost(
+                      text: 'Download PDF',
+                      icon: Icons.download_rounded,
                       height: 38,
-                      onPressed: () => _triggerPrintView(context, patient),
+                      onPressed: _isProcessingDocument ? null : () => _handleDownload(patient),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Native Print Button
+                    AppButton(
+                      text: _isProcessingDocument ? 'Processing...' : 'Print Bill',
+                      icon: _isProcessingDocument ? null : Icons.print_outlined,
+                      height: 38,
+                      onPressed: _isProcessingDocument ? null : () => _handlePrint(patient),
                     ),
 
-                    if (widget.invoice.balanceAmount > 0) ...[
+                    if (_currentInvoice.balanceAmount > 0) ...[
                       const SizedBox(width: 8),
                       AppButton.success(
                         text: 'Record Payment',
                         icon: Icons.payments_outlined,
                         height: 38,
-                        onPressed: () => _showRecordPaymentModal(context),
+                        onPressed: () => _showRecordPaymentModal(),
                       ),
                     ],
 
                     const SizedBox(width: 8),
                     IconButton(
-                      icon: const Icon(Icons.close, size: 20),
+                      icon: const Icon(Icons.close, size: 20, color: Colors.white70),
                       tooltip: 'Close Preview',
                       onPressed: () => Navigator.of(context).pop(),
                     ),
@@ -296,7 +366,7 @@ class _InvoicePreviewDialogState extends State<InvoicePreviewDialog> {
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
                   child: Center(
                     child: PrintableReceiptDocument(
-                      invoice: widget.invoice,
+                      invoice: _currentInvoice,
                       patient: patient,
                       format: _selectedFormat,
                     ),

@@ -30,7 +30,7 @@ class Patient {
     required this.dateOfBirth,
     required this.gender,
     required this.address,
-    required this.emergencyContact,
+    this.emergencyContact = '',
     required this.assignedDoctorId,
     required this.assignedDoctorName,
     required this.lastVisit,

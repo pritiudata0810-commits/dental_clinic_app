@@ -4,6 +4,7 @@ import '../../theme/app_text_styles.dart';
 import '../../widgets/common/app_card.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/toast_notification.dart';
+import '../../services/auth_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -13,6 +14,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+
   // Theme & Appearance
   String _themeMode = 'Light';
   String _uiDensity = 'Comfortable';
@@ -245,8 +247,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         AppButton.danger(
                           text: 'Sign Out Workstation',
                           icon: Icons.logout,
-                          onPressed: () {
-                            Navigator.of(context).pushReplacementNamed('/login');
+                          onPressed: () async {
+                            await AuthService.instance.signOut();
+                            if (context.mounted) {
+                              Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                            }
                           },
                         ),
                       ],
@@ -257,7 +262,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
 
+          const SizedBox(height: 20),
           const SizedBox(height: 24),
+
 
           // Save Button Bar
           Row(
@@ -467,10 +474,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
-          Text(value, style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600)),
+          Expanded(
+            flex: 2,
+            child: Text(label, style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
         ],
       ),
     );

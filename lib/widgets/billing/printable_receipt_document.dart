@@ -38,25 +38,25 @@ class PrintableReceiptDocument extends StatelessWidget {
 
     final crNumber = (patient?.crNumber != null && patient!.crNumber.isNotEmpty)
         ? patient!.crNumber
-        : '20230212937';
+        : (patient?.id.isNotEmpty == true ? patient!.id : invoice.patientId);
 
     final ageStr = (patient?.age != null && patient!.age.isNotEmpty)
         ? patient!.age
         : (patient?.dateOfBirth != null && patient!.dateOfBirth.isNotEmpty)
             ? patient!.dateOfBirth
-            : '51 yrs';
+            : 'N/A';
 
     final genderStr = patient?.gender != null && patient!.gender.isNotEmpty
         ? (patient!.gender.toLowerCase().startsWith('m') ? 'M' : 'F')
-        : 'F';
+        : 'N/A';
 
     final receiptNo = invoice.receiptNumber.isNotEmpty
         ? invoice.receiptNumber
-        : '2023021350079';
+        : 'Pending';
 
     final preparedBy = invoice.receivedBy.isNotEmpty
         ? invoice.receivedBy
-        : 'Mr. Ajay Dhanger';
+        : 'Clinic Staff';
 
     return Container(
       constraints: const BoxConstraints(maxWidth: 794), // Standard A4 width at 96 DPI

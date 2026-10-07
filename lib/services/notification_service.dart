@@ -1,9 +1,73 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/notification_item.dart';
 import 'supabase_service.dart';
 
 class NotificationService {
   final SupabaseService _supabase = SupabaseService.instance;
+  RealtimeChannel? _subscription;
+
+  RealtimeChannel? initRealtimeSubscription({
+    required void Function(NotificationItem item) onInsert,
+    required void Function(NotificationItem item) onUpdate,
+  }) {
+    final client = _supabase.client;
+    if (client == null) return null;
+
+    try {
+      _subscription = client
+          .channel('public:notifications')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'notifications',
+            callback: (payload) {
+              try {
+                final record = payload.newRecord;
+                final item = NotificationItem.fromMap(record);
+                onInsert(item);
+              } catch (e) {
+                debugPrint('[NotificationService] Error parsing realtime insert: $e');
+              }
+            },
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: 'notifications',
+            callback: (payload) {
+              try {
+                final record = payload.newRecord;
+                final item = NotificationItem.fromMap(record);
+                onUpdate(item);
+              } catch (e) {
+                debugPrint('[NotificationService] Error parsing realtime update: $e');
+              }
+            },
+          )
+          .subscribe();
+
+      return _subscription;
+    } catch (e) {
+      debugPrint('[NotificationService] Error establishing realtime subscription: $e');
+      return null;
+    }
+  }
+
+  Future<void> disposeRealtime() async {
+    final sub = _subscription;
+    _subscription = null;
+    if (sub != null) {
+      try {
+        final client = _supabase.client;
+        if (client != null) {
+          await client.removeChannel(sub);
+        }
+      } catch (e) {
+        debugPrint('[NotificationService] Error disposing realtime channel: $e');
+      }
+    }
+  }
 
   Future<List<NotificationItem>?> fetchNotifications() async {
     final client = _supabase.client;
